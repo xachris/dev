@@ -19,6 +19,10 @@
 
 - **一个学生，一个永久学号，多种身份，不同视图。**
 - **报告留在学校系统内，外部只发送通知。**
+- **不产生无用途的“死数据”。**
+- **一份数据，只产生一次，多处复用。**
+- **正常状态自动推导，人只处理异常。**
+- **系统不是记录系统，而是行动系统。**
 - 学生学号是稳定身份主键，邮箱、登录方式和供应商可以变化。
 - 学生、家长、教师和管理员权限必须分离。
 - 家长与学生可以访问同一个学生空间，但看到的内容不同。
@@ -26,6 +30,19 @@
 - 收件人、学生关系和权限必须来自结构化学校数据，不能由 AI 猜测。
 - 优先采用学校可控、可迁移、低供应商锁定的技术架构。
 - 正式数据必须可审计、可备份、可恢复、可追踪。
+
+完整设计原则见：[`docs/PRODUCT_PHILOSOPHY.md`](docs/PRODUCT_PHILOSOPHY.md)。后续新增功能、数据字段、工作流和 AI 能力时，应优先以该文档作为产品和架构判断依据。
+
+## 核心设计文档
+
+- [`docs/PRODUCT_PHILOSOPHY.md`](docs/PRODUCT_PHILOSOPHY.md)：产品设计哲学与新增功能检查清单
+- [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md)：项目定位与范围
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：总体架构
+- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)：核心数据模型
+- [`docs/PERMISSION_MODEL.md`](docs/PERMISSION_MODEL.md)：角色与权限模型
+- [`docs/SECURITY_BASELINE.md`](docs/SECURITY_BASELINE.md)：安全基线
+- [`docs/LOCALIZATION.md`](docs/LOCALIZATION.md)：中文产品与代码语言规范
+- [`docs/ROADMAP.md`](docs/ROADMAP.md)：开发路线图
 
 ## 默认使用环境
 
