@@ -59,6 +59,30 @@ class PilotUiTests(TestCase):
         wrong = self.client.get(reverse("core:teacher_comment", args=[self.math_comment.id]))
         self.assertEqual(wrong.status_code, 403)
 
+    def test_homeroom_cannot_read_teacher_draft_content(self):
+        self.login("teacher.cs")
+        saved = self.client.post(
+            reverse("core:teacher_comment", args=[self.cs_comment.id]),
+            {
+                "student_feedback": "PRIVATE DRAFT STUDENT TEXT",
+                "guardian_message": "PRIVATE DRAFT GUARDIAN TEXT",
+                "staff_note": "PRIVATE DRAFT STAFF TEXT",
+                "action": "save",
+            },
+            follow=True,
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.cs_comment.refresh_from_db()
+        self.assertEqual(self.cs_comment.status, SubjectComment.Status.DRAFT)
+
+        self.login("homeroom.g8a")
+        review = self.client.get(reverse("core:homeroom_report", args=[self.report.id]))
+        self.assertEqual(review.status_code, 200)
+        self.assertNotContains(review, "PRIVATE DRAFT STUDENT TEXT")
+        self.assertNotContains(review, "PRIVATE DRAFT GUARDIAN TEXT")
+        self.assertNotContains(review, "PRIVATE DRAFT STAFF TEXT")
+        self.assertContains(review, "草稿内容不会提前显示")
+
     def test_system_admin_does_not_receive_education_content(self):
         self.login("system.admin")
         response = self.client.get(reverse("core:dashboard"))
