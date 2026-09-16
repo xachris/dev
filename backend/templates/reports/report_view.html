@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}学习报告 · {{ report.student_membership.student.full_name }}{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Published learning report</p>
+        <h1>{{ report.student_membership.student.full_name }}</h1>
+        <p class="muted">{{ report.student_membership.student_number }} · {{ report.report_cycle.name }}</p>
+    </div>
+    <a class="button secondary" href="{% url 'core:dashboard' %}">返回工作台</a>
+</section>
+
+<section class="report-document">
+    <div class="report-document-head">
+        <div>
+            <span class="badge">已发布</span>
+            <h2>{{ report.report_cycle.name }} 学习报告</h2>
+        </div>
+        <div class="muted small">
+            {% if report.published_at %}发布于 {{ report.published_at|date:"Y-m-d H:i" }}{% endif %}
+        </div>
+    </div>
+
+    {% for item in content %}
+    <article class="subject-report">
+        <div class="subject-title">
+            <span>{{ item.subject_code }}</span>
+            <h3>{{ item.subject_name }}</h3>
+        </div>
+        <div class="field-block prominent">
+            <strong>学习反馈</strong>
+            <p>{{ item.student_feedback|default:"无" }}</p>
+        </div>
+        {% if item.guardian_message is not None %}
+        <div class="field-block guardian-field">
+            <strong>家长专属信息</strong>
+            <p>{{ item.guardian_message|default:"无" }}</p>
+        </div>
+        {% endif %}
+        {% if item.staff_note is not None %}
+        <div class="field-block staff-field">
+            <strong>教职工内部备注</strong>
+            <p>{{ item.staff_note|default:"无" }}</p>
+        </div>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}
