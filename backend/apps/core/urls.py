@@ -25,6 +25,21 @@ urlpatterns = [
         name="teacher_comment",
     ),
     path(
+        "teacher/batch/<uuid:assignment_id>/<uuid:cycle_id>/",
+        pilot_views.teacher_batch,
+        name="teacher_batch",
+    ),
+    path(
+        "teacher/batch/<uuid:assignment_id>/<uuid:cycle_id>/import/",
+        pilot_views.teacher_batch_import,
+        name="teacher_batch_import",
+    ),
+    path(
+        "teacher/batch/<uuid:assignment_id>/<uuid:cycle_id>/template/<str:file_format>/",
+        pilot_views.teacher_batch_template,
+        name="teacher_batch_template",
+    ),
+    path(
         "homeroom/report/<uuid:report_id>/",
         pilot_views.homeroom_report,
         name="homeroom_report",
