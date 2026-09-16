@@ -4,16 +4,48 @@
 
 建设一个由学校自主控制、可以部署在学校自管服务器或云服务器上的数字化平台。核心数据、权限、工作流和审计历史不依赖单一大型第三方平台。
 
+## 架构决策记录
+
+重大架构选择必须同时参考 [`docs/decisions/`](decisions/README.md) 中的 Architecture Decision Records（ADR）。
+
+已经标记为 `Accepted` 的 ADR 可以被未来的新 ADR 替代，但不得在不了解原背景和业务权衡的情况下静默改写。任何基础技术栈变化都必须说明：原方案为何不再适用、现实条件发生了什么变化、新方案带来的业务收益、迁移成本、风险和回滚方式。
+
+当前前端策略见 [`ADR-001：前端架构策略`](decisions/ADR-001-frontend-strategy.md)。当前默认继续使用 Django Templates + CSS + 少量 JavaScript；是否引入 React / Next.js 由真实交互复杂度和 Pilot 数据决定，而不是由框架流行度决定。
+
 ## 初始技术栈
 
 - Python
 - Django
 - PostgreSQL
-- Django Templates + 少量 JavaScript（V0.1）
+- Django Templates + 少量 JavaScript（当前默认，详见 ADR-001）
 - Nginx
 - Linux Server
 - 可选本地 AI 适配器
 - 可替换邮件通知适配器
+
+### 当前前端边界
+
+现阶段已经形成并验证：
+
+```text
+Model
+↓
+Policy
+↓
+Service
+↓
+View
+↓
+Django Template
+↓
+Browser
+```
+
+因此当前不进行全面 React / Next.js 重写。
+
+未来如果整班批量录入、复杂拖拽排课、实时 Dashboard、多客户端共享 API 等真实需求证明当前页面层成为瓶颈，可以按 ADR-001 重新评估局部增强、React island 或完整前后端分离。
+
+无论前端技术如何变化，服务器端 Policy、Service、Tenant 边界、权限和状态机语义不得退化。
 
 ## 默认本地化设置
 
@@ -83,6 +115,9 @@ Django 应用
 
 ### 8. 面向中国学校场景设计
 正式上线前应根据学校所在地区和适用要求，完成网络安全、数据安全、个人信息保护、等级保护等方面的正式评估和整改。原型开发不等于完成生产合规。
+
+### 9. Complexity on demand
+不因为技术流行或未来假想需求提前增加独立运行时、服务或框架。只有当真实业务瓶颈已经出现、收益能够说明并通过 Pilot 验证时，才增加对应复杂度。
 
 ## 初始应用模块
 
