@@ -1,99 +1,111 @@
-# Security Baseline
+# 安全基线
 
-## Scope
+## 适用范围
 
-This document defines the minimum engineering baseline for prototype development so that later production hardening does not require redesigning the entire platform.
+本文档定义原型阶段就必须遵守的最低安全工程要求，避免未来进入真实学校环境后才发现需要推翻整个系统重做。
 
-## Principles
+## 基本原则
 
-1. Least privilege.
-2. Deny by default.
-3. Server-side authorization.
-4. Audit important actions.
-5. Separate environments.
-6. Never store plaintext passwords.
-7. Never commit secrets to Git.
-8. Use synthetic data during development.
-9. Separate technical administration from educational-content access where possible.
-10. Design for backup and recovery from the beginning.
+1. 最小权限。
+2. 默认拒绝。
+3. 服务器端鉴权。
+4. 关键操作可审计。
+5. 开发、预发布和生产环境分离。
+6. 永远不保存明文密码。
+7. 永远不把密钥提交到 Git。
+8. 开发阶段只使用虚拟数据。
+9. 技术运维权限与教育内容访问权限尽量分离。
+10. 从项目第一天就考虑备份与恢复。
 
-## Authentication
+## 身份认证
 
-- Passwords must use Django's secure password hashing framework.
-- Session cookies must be secure in production.
-- Login rate limiting should be added before production.
-- Guardian and student actors should be distinguishable even when attached to the same student ID.
-- Privileged administrator accounts should support stronger authentication before production.
+- 密码使用 Django 安全密码哈希机制。
+- 正式环境 Session Cookie 必须启用安全配置。
+- 正式上线前加入登录失败限制和速率限制。
+- 即使绑定同一个学生学号，学生和家长也必须能被后台区分为不同操作身份。
+- 高权限管理员账号在正式环境中应采用更强认证措施。
 
-## Authorization
+## 权限校验
 
-Every request that reads or changes student information must validate both:
+任何读取或修改学生信息的请求，都必须同时校验：
 
-1. the actor's role; and
-2. the actor's relationship/scope for the target student.
+1. 当前操作人的角色；
+2. 当前操作人与目标学生之间的有效业务关系或授权范围。
 
-Front-end hiding is not sufficient authorization.
+前端不显示按钮不等于完成了权限控制。
 
-## Data handling
+## 数据处理
 
-- Real student data is prohibited in development fixtures.
-- Sensitive production fields should be minimised.
-- Bulk exports should be permission-controlled and audited.
-- Staff-only content must not leak into student/guardian serializers or templates.
-- AI adapters must receive only the minimum data required for their task.
+- 开发测试数据禁止使用真实学生个人信息。
+- 正式环境尽量减少不必要的敏感字段。
+- 批量导出必须受权限控制并写入审计日志。
+- `STAFF_ONLY` 内容不得泄露到学生或家长模板、接口或序列化结果中。
+- AI 适配器只能获得完成任务所需的最少数据。
+- 学生、家长、教师之间的关系数据不得由 AI 自动推断或修改。
 
-## Secrets
+## 密钥管理
 
-Secrets belong in environment variables or a managed secret store, never source control.
+密钥必须存放在环境变量或正式密钥管理方案中，不得写入源码。
 
-Examples:
-- Django secret key
-- database password
-- mail credentials/tokens
-- AI credentials
+包括但不限于：
 
-`.env` is ignored by Git. `.env.example` contains placeholders only.
+- Django `SECRET_KEY`
+- 数据库密码
+- 邮件凭证 / Token
+- AI 服务凭证
 
-## Transport
+`.env` 必须被 Git 忽略，仓库只保留不含真实密钥的 `.env.example`。
 
-Production must use HTTPS. Plain HTTP is acceptable only in isolated local development.
+## 网络传输
 
-## Database
+生产环境必须使用 HTTPS。明文 HTTP 只允许出现在隔离的本地开发环境。
 
-- Application database credentials must not be shared with ordinary users.
-- Production database should not be exposed directly to the public internet.
-- Direct database access is an exceptional maintenance activity, not a normal business workflow.
+## 数据库
 
-## Audit events
+- 应用数据库账号不得与普通用户共享。
+- 正式数据库原则上不得直接暴露到公网。
+- 直接连接生产数据库只能作为受控维护活动，不得成为日常业务流程。
 
-At minimum, log:
+## 最低审计范围
 
-- authentication events of interest
-- report submit/return/approve/publish actions
-- privileged account changes
-- guardian/student relationship changes
-- permission changes
-- exports of sensitive information
-- administrative overrides
+至少记录：
 
-## Backup
+- 重要登录和认证事件
+- 报告提交、退回、批准和发布
+- 高权限账号变更
+- 学生—家长关系变更
+- 权限变更
+- 敏感数据导出
+- 管理员强制覆盖或异常操作
 
-Production target:
+## 备份要求
 
-- automated database backups
-- encrypted off-host copy
-- encrypted school-controlled local copy
-- retention policy
-- periodic restoration tests
+正式环境目标：
 
-A backup that has never been restored is not yet proven usable.
+- 自动数据库备份
+- 加密异机副本
+- 学校自主控制的本地加密副本
+- 明确保留周期
+- 定期执行恢复演练
 
-## Environment separation
+从未实际恢复验证过的备份，不能视为已经证明可用。
 
-Development, staging, and production should use distinct credentials and databases.
+## 环境隔离
 
-No production secret may be copied into source code or test fixtures.
+Development、Staging、Production 应使用不同的凭证和数据库。
 
-## Compliance preparation
+生产密钥不得复制进源码、测试夹具或示例配置。
 
-Before the platform handles real student data, the school should conduct formal security and privacy review appropriate to the jurisdiction, including classification/filing or assessment obligations where applicable. Prototype development should not be mistaken for production compliance approval.
+## 中国学校正式上线前的合规准备
+
+在处理真实学生和家长数据前，学校应由具备相应职责和专业能力的人员或机构对以下事项进行正式评估：
+
+- 网络安全要求
+- 数据安全要求
+- 个人信息保护要求
+- 未成年人信息保护
+- 网络安全等级保护相关定级、备案、建设整改和测评要求
+- 数据备份、恢复和应急响应制度
+- 第三方供应商和云服务的数据处理边界
+
+原型遵循安全基线，不代表已经完成生产环境所需的法律或合规程序。
