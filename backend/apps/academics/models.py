@@ -81,6 +81,12 @@ class Subject(SchoolScopedModel):
             )
         ]
 
+    def save(self, *args, **kwargs):
+        # 学科代码是机器和业务共同使用的稳定标识。统一大小写，避免 CS / cs 成为两门“不同”学科。
+        self.code = self.code.strip().upper()
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         return f"{self.school.code} / {self.code} / {self.name}"
 
@@ -90,7 +96,11 @@ class StudentClassMembershipQuerySet(models.QuerySet):
         return self.filter(class_group__academic_year__school=school)
 
     def active(self):
-        return self.filter(is_active=True)
+        """有效班级关系由本关系和上游学生在读状态共同决定。"""
+        return self.filter(
+            is_active=True,
+            student_membership__status=StudentSchoolMembership.Status.ACTIVE,
+        )
 
 
 class StudentClassMembership(models.Model):
@@ -107,7 +117,7 @@ class StudentClassMembership(models.Model):
         related_name="student_memberships",
         verbose_name="班级 / 教学分组",
     )
-    is_active = models.BooleanField("有效", default=True)
+    is_active = models.BooleanField("关系本身有效", default=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
@@ -130,21 +140,21 @@ class StudentClassMembership(models.Model):
             errors["class_group"] = "学生学校关系与班级必须属于同一所学校。"
 
         if self.is_active and self.student_membership.status != StudentSchoolMembership.Status.ACTIVE:
-            errors["is_active"] = "非在读学生不能拥有有效班级关系。"
+            errors["is_active"] = "非在读学生不能拥有新的有效班级关系。"
 
         if (
             self.is_active
             and self.class_group.group_type == ClassGroup.GroupType.HOMEROOM
-            and StudentClassMembership.objects.filter(
+            and StudentClassMembership.objects.active()
+            .filter(
                 student_membership=self.student_membership,
                 class_group__academic_year=self.class_group.academic_year,
                 class_group__group_type=ClassGroup.GroupType.HOMEROOM,
-                is_active=True,
             )
             .exclude(pk=self.pk)
             .exists()
         ):
-            errors["class_group"] = "同一学年中，一名学生只能有一个有效班主任班级。"
+            errors["class_group"] = "同一学年中，一名在读学生只能有一个有效班主任班级。"
 
         if errors:
             raise ValidationError(errors)
@@ -162,7 +172,12 @@ class TeachingAssignmentQuerySet(models.QuerySet):
         return self.filter(class_group__academic_year__school=school)
 
     def active(self):
-        return self.filter(is_active=True)
+        """任课关系只有在关系、教师角色和账号都有效时才实际生效。"""
+        return self.filter(
+            is_active=True,
+            teacher_role__is_active=True,
+            teacher_role__user__is_active=True,
+        )
 
 
 class TeachingAssignment(models.Model):
@@ -185,7 +200,7 @@ class TeachingAssignment(models.Model):
         related_name="teaching_assignments",
         verbose_name="学科",
     )
-    is_active = models.BooleanField("有效", default=True)
+    is_active = models.BooleanField("关系本身有效", default=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
@@ -208,7 +223,9 @@ class TeachingAssignment(models.Model):
         if self.teacher_role.role != RoleAssignment.Role.TEACHER:
             errors["teacher_role"] = "任课关系必须使用教师角色授权。"
         elif self.is_active and not self.teacher_role.is_active:
-            errors["teacher_role"] = "无效的教师角色不能创建有效任课关系。"
+            errors["teacher_role"] = "无效的教师角色不能创建新的有效任课关系。"
+        elif self.is_active and not self.teacher_role.user.is_active:
+            errors["teacher_role"] = "已停用账号不能创建新的有效任课关系。"
 
         if self.teacher_role.school_id != class_school_id:
             errors["teacher_role"] = "教师角色与班级必须属于同一所学校。"
@@ -236,7 +253,12 @@ class HomeroomAssignmentQuerySet(models.QuerySet):
         return self.filter(class_group__academic_year__school=school)
 
     def active(self):
-        return self.filter(is_active=True)
+        """班主任关系只有在关系、教师角色和账号都有效时才实际生效。"""
+        return self.filter(
+            is_active=True,
+            teacher_role__is_active=True,
+            teacher_role__user__is_active=True,
+        )
 
 
 class HomeroomAssignment(models.Model):
@@ -253,7 +275,7 @@ class HomeroomAssignment(models.Model):
         related_name="homeroom_assignments",
         verbose_name="班主任班级",
     )
-    is_active = models.BooleanField("有效", default=True)
+    is_active = models.BooleanField("关系本身有效", default=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
@@ -276,7 +298,9 @@ class HomeroomAssignment(models.Model):
         if self.teacher_role.role != RoleAssignment.Role.TEACHER:
             errors["teacher_role"] = "班主任关系必须使用教师角色授权。"
         elif self.is_active and not self.teacher_role.is_active:
-            errors["teacher_role"] = "无效的教师角色不能创建有效班主任关系。"
+            errors["teacher_role"] = "无效的教师角色不能创建新的有效班主任关系。"
+        elif self.is_active and not self.teacher_role.user.is_active:
+            errors["teacher_role"] = "已停用账号不能创建新的有效班主任关系。"
 
         if self.teacher_role.school_id != class_school_id:
             errors["teacher_role"] = "教师角色与班主任班级必须属于同一所学校。"
