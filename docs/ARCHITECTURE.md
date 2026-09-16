@@ -1,111 +1,122 @@
-# Architecture
+# 系统架构
 
-## Goal
+## 目标
 
-Build a self-hosted, school-controlled platform that can run on a school-managed or cloud Linux server while keeping core data, permissions, workflows, and audit history independent from large third-party platforms.
+建设一个由学校自主控制、可以部署在学校自管服务器或云服务器上的数字化平台。核心数据、权限、工作流和审计历史不依赖单一大型第三方平台。
 
-## Initial stack
+## 初始技术栈
 
 - Python
 - Django
 - PostgreSQL
-- Django templates + minimal JavaScript for V0.1
-- Nginx in front of the application
-- Linux server deployment
-- Optional local AI adapter
-- Pluggable email notification adapter
+- Django Templates + 少量 JavaScript（V0.1）
+- Nginx
+- Linux Server
+- 可选本地 AI 适配器
+- 可替换邮件通知适配器
 
-## Logical architecture
+## 默认本地化设置
+
+- 默认语言：简体中文（`zh-CN`）
+- 默认时区：`Asia/Shanghai`
+- 默认日期格式：`YYYY-MM-DD`
+- 教师、家长、学生和管理后台界面：中文优先
+- 代码、数据库字段、API 与枚举：英文优先
+
+## 逻辑架构
 
 ```text
-Browser
+浏览器
   |
   v
 Nginx / HTTPS
   |
   v
-Django Application
-  |-- Accounts & Roles
-  |-- Students
-  |-- Academics
-  |-- Reports
-  |-- Notifications
-  |-- Audit
+Django 应用
+  |-- 账号与角色
+  |-- 学生
+  |-- 教务基础数据
+  |-- 学习报告
+  |-- 通知
+  |-- 审计
   |
   +--> PostgreSQL
   |
-  +--> Mail Adapter --> Outlook / SMTP
+  +--> 邮件适配器 --> Outlook / SMTP
   |
-  +--> AI Adapter --> none / local / external
+  +--> AI 适配器 --> none / local / external
 ```
 
-## Deployment environments
+## 部署环境
 
-### Development
-Developer machine or controlled development environment. Synthetic data only.
+### Development（开发环境）
+用于日常开发。只允许使用虚拟数据。
 
-### Staging
-Server environment that mirrors production architecture. Synthetic or explicitly sanitised data only unless authorised otherwise.
+### Staging（预发布环境）
+用于模拟正式部署架构、验收新版本和执行完整业务测试。原则上使用虚拟或脱敏数据。
 
-### Production
-School-operated service containing real school data. Production must have security hardening, backups, monitoring, and controlled administrative access.
+### Production（生产环境）
+承载真实学校数据。必须具备安全加固、自动备份、监控、权限控制和正式运维流程。
 
-## Core architectural rules
+## 核心架构规则
 
-### 1. Student ID is the stable domain identifier
-A student record is centred on a permanent student ID. Email addresses, login methods, and vendors may change without changing the student identity.
+### 1. 学号是稳定的学生身份主键
+学生档案围绕永久学号组织。邮箱地址、登录方式、供应商甚至系统实现都可以变化，但学生身份不能因此变化。
 
-### 2. Identity and role are separate concepts
-A student record can be accessed through different authorised actors. Student, guardian, teacher, and administrator access must be distinguished in the application layer.
+### 2. 学生身份与登录角色分离
+同一个学生档案可以被不同授权角色访问。学生、家长、教师、管理员必须在应用层被明确区分。
 
-### 3. Visibility is data-driven
-Content is stored once and rendered according to visibility policy. Student-visible, guardian-visible, and staff-only content are not duplicated into separate independent systems.
+### 3. 同一份数据根据权限生成不同视图
+内容尽量只存一份，根据权限规则决定学生、家长、教职工分别看到什么，而不是为每个角色复制独立数据。
 
-### 4. AI is an adapter, not a dependency
-Core workflows must remain operational with `AI_PROVIDER=none`.
+### 4. AI 是适配器，不是依赖
+即使设置 `AI_PROVIDER=none`，核心业务流程也必须完整可用。
 
-### 5. Email is an adapter, not the system of record
-Learning reports remain in the school database. Email is used to send notifications and authentication messages when required.
+### 5. 邮箱只是通知通道，不是系统数据库
+正式报告保存在学校数据库中。邮箱只负责报告发布提醒、验证码或其他必要通知。
 
-### 6. Auditability is mandatory
-Important changes must record actor, action, target, timestamp, and relevant before/after information where appropriate.
+### 6. 关键操作必须可审计
+重要操作应至少记录：操作人、动作、目标对象、时间，以及在需要时保存变更前后信息。
 
-### 7. Least privilege
-Technical administration, academic administration, and educational-content access should not automatically imply one another.
+### 7. 最小权限
+技术管理权限、学术管理权限和教育内容访问权限不应自动互相包含。
 
-## Initial application modules
+### 8. 面向中国学校场景设计
+正式上线前应根据学校所在地区和适用要求，完成网络安全、数据安全、个人信息保护、等级保护等方面的正式评估和整改。原型开发不等于完成生产合规。
 
-### accounts
-Authentication, credentials, role memberships, login state, access policy helpers.
+## 初始应用模块
 
-### students
-Student identity, guardian relationships, enrolment state, class membership.
+### `accounts`
+登录、账号、角色、凭证、会话和权限辅助逻辑。
 
-### academics
-Subjects, teaching assignments, homeroom relationships, academic years, report cycles.
+### `students`
+学生身份、学号、家长关系、在校状态、班级关系。
 
-### reports
-Teacher comments, report assembly, workflow state, visibility, review, approval, publication.
+### `academics`
+学年、班级、学科、教师任课关系、班主任关系、报告周期。
 
-### notifications
-Notification outbox, delivery state, retry metadata, mail adapter.
+### `reports`
+学科评价、学生整体报告、工作流状态、可见范围、审核、批准、发布。
 
-### audit
-Security-relevant and business-relevant audit events.
+### `notifications`
+通知 Outbox、发送状态、失败重试和邮件适配器。
 
-## Background processing
+### `audit`
+安全相关和业务相关的审计事件。
 
-V0.1 can operate synchronously where safe, but notification delivery should evolve toward an outbox/worker model before production. Publication must not depend on successfully sending every email in the same HTTP request.
+## 后台任务
 
-## Backup model
+V0.1 可以在安全的地方先采用同步处理，但正式通知发送应在进入生产前演进为 Outbox + Worker 模式。发布报告不应因为某一封邮件发送失败而整体失败。
 
-Production target:
+## 备份模型
+
+正式环境目标：
 
 ```text
 Production PostgreSQL
-   |-- automated cloud/server backup
-   |-- encrypted off-host backup
-   `-- encrypted school-controlled local backup
+   |-- 云端 / 服务器自动备份
+   |-- 加密异机备份
+   `-- 学校控制的本地加密备份
 ```
 
-Backup success alone is insufficient; restore procedures must be tested periodically.
+仅仅“生成了备份文件”不代表备份可靠，恢复流程必须定期测试。
