@@ -1,22 +1,30 @@
 # 后端工程
 
-Django 应用代码放在这里。
+当前后端采用 Django 5.2 LTS + PostgreSQL，保持模块化单体架构。
 
-计划模块：
+## 本地启动
 
-- `accounts`：账号、登录、角色与权限
-- `students`：学生身份、学号、家长关系与在校状态
-- `academics`：学年、班级、学科、任课关系、班主任关系
-- `reports`：学习评价、审核、批准、发布与不同角色视图
-- `notifications`：通知 Outbox、邮件适配器、发送状态与重试
-- `audit`：安全与业务审计日志
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python backend/manage.py migrate
+python backend/manage.py runserver
+```
 
-## 开发约定
+Windows 没有 `cp` 时可手动复制 `.env.example` 为 `.env`。
 
-- 用户界面默认使用简体中文。
-- Django 默认语言设置为 `zh-hans`。
-- 默认时区使用 `Asia/Shanghai`。
-- Python 类名、模块名、数据库字段、API 和枚举继续使用英文。
-- 所有开发测试数据必须为虚构数据，不得使用真实学生资料。
+默认页面：`http://127.0.0.1:8000/`
+健康检查：`http://127.0.0.1:8000/health/`
 
-Milestone 1 从创建 Django 项目开始，优先实现：登录、学生永久学号、角色权限、学习报告工作流和学生/家长差异化视图。
+## 测试
+
+需要可连接的 PostgreSQL：
+
+```bash
+DJANGO_SETTINGS_MODULE=config.settings.test python backend/manage.py test apps
+```
+
+开发阶段禁止使用真实学生数据。
