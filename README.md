@@ -84,13 +84,16 @@
 - Phase 2：School / Tenant 多学校底座
 - Phase 3：统一身份与关系模型
 - Phase 4：最小学术结构
+- Phase 5：RBAC + Contextual Permission
 
 下一阶段：
 
-> **Phase 5：RBAC + Contextual Permission**
+> **Phase 6：学习报告数据模型、状态机与对象级内容权限**
 
-Phase 3 与 Phase 4 的业务意义核验均为 `PASS WITH RISK`。风险已经记录在对应开发日志中，核心原因是请求级权限、安全写入服务和部分生命周期规则尚未完成。
+Phase 5 已建立集中式服务器端 Policy 层，并通过 62 个自动化测试验证跨校、任课、班主任、家长、管理员、账号停用、学年失效等允许与拒绝路径。
 
-因此 Phase 5 是接入任何真实学生数据之前的重要安全门槛。Phase 5 未通过前，继续只使用虚拟数据，不进行真实学校生产试点。
+Phase 5 的功能核验结论为 `PASS`，业务意义核验结论为 `PASS WITH RISK`。关系型权限已经成立，但真实 View/API 尚未接入，报告对象级内容权限与历史访问政策仍需在 Phase 6 继续完成。
+
+因此当前仍然只使用虚拟数据，不接入真实学生生产数据。
 
 后续开发默认严格按照 [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) 的顺序推进，并按照 [`docs/VERIFICATION_STANDARD.md`](docs/VERIFICATION_STANDARD.md) 进行功能 + 业务意义双重核验。
