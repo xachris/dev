@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}登录 · 学校数字化平台{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-card">
+        <p class="eyebrow">Secure sign in</p>
+        <h1>登录测试系统</h1>
+        <p class="muted">使用演示账号进入对应角色工作台。</p>
+        {% if form.errors %}
+        <div class="message error">用户名或密码不正确。</div>
+        {% endif %}
+        <form method="post" class="stack-form">
+            {% csrf_token %}
+            <label>
+                <span>用户名</span>
+                <input type="text" name="username" autofocus autocomplete="username" required>
+            </label>
+            <label>
+                <span>密码</span>
+                <input type="password" name="password" autocomplete="current-password" required>
+            </label>
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <button class="button primary" type="submit">登录</button>
+        </form>
+        <a class="back-link" href="{% url 'core:home' %}">返回测试账号列表</a>
+    </div>
+</section>
+{% endblock %}
