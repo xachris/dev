@@ -78,16 +78,19 @@
 
 ## 当前开发阶段
 
-已完成并通过机器验收：
+已完成并通过双重验收：
 
 - Phase 1：工程初始化
 - Phase 2：School / Tenant 多学校底座
 - Phase 3：统一身份与关系模型
+- Phase 4：最小学术结构
 
 下一阶段：
 
-> **Phase 4：最小学术结构**
+> **Phase 5：RBAC + Contextual Permission**
 
-Phase 3 的业务意义核验结论为 `PASS WITH RISK`：统一身份设计业务价值成立，但平台级 Student 的跨学校身份能力和当前尚未完成的请求级权限属于明确风险。因此在 Phase 5 权限体系完成前，继续只使用虚拟数据，不接入真实学生生产数据。
+Phase 3 与 Phase 4 的业务意义核验均为 `PASS WITH RISK`。风险已经记录在对应开发日志中，核心原因是请求级权限、安全写入服务和部分生命周期规则尚未完成。
 
-后续开发默认严格按照 [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) 的顺序推进，并按照 [`docs/VERIFICATION_STANDARD.md`](docs/VERIFICATION_STANDARD.md) 进行双重核验。
+因此 Phase 5 是接入任何真实学生数据之前的重要安全门槛。Phase 5 未通过前，继续只使用虚拟数据，不进行真实学校生产试点。
+
+后续开发默认严格按照 [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) 的顺序推进，并按照 [`docs/VERIFICATION_STANDARD.md`](docs/VERIFICATION_STANDARD.md) 进行功能 + 业务意义双重核验。
