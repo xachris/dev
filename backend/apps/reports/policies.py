@@ -168,8 +168,11 @@ def subject_comment_content_for(user: UserAccount, comment: SubjectComment) -> d
             "staff_note": comment.staff_note,
         }
 
-    # 对外内容必须等整份报告正式发布。
-    if report.status != StudentReport.Status.PUBLISHED:
+    # 对外内容必须等整份报告正式发布，并且只允许正式提交过的学科槽。
+    if (
+        report.status != StudentReport.Status.PUBLISHED
+        or comment.status != SubjectComment.Status.SUBMITTED
+    ):
         return {}
 
     if _is_active_guardian(user, report):
