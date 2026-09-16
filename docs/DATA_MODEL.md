@@ -1,32 +1,37 @@
-# Data Model
+# 数据模型
 
-## Design principle
+## 设计原则
 
-The permanent student ID is the centre of the domain model. Accounts, guardians, reports, classes, and notifications reference structured records rather than free-text names or inferred relationships.
+永久学号是整个业务模型的中心。账号、家长关系、班级、教师、报告和通知都通过结构化关系引用学生记录，不依赖自由文本姓名，也不允许通过 AI 推断关系。
 
-## Core entities
+> 产品界面使用中文名称；代码层继续使用英文模型名和字段名。
 
-### Student
+## 核心实体
+
+### 学生 `Student`
+
 - `id`
-- `student_id` (permanent, unique)
-- `full_name`
-- `status` (`ACTIVE`, `SUSPENDED`, `WITHDRAWN`, `ALUMNI`)
-- `date_of_birth` (future production field; sensitive)
+- `student_id`：永久学号，唯一
+- `full_name`：姓名
+- `status`：`ACTIVE` / `SUSPENDED` / `WITHDRAWN` / `ALUMNI`
+- `date_of_birth`：出生日期，正式环境敏感字段
 - `created_at`
 - `updated_at`
 
-### UserAccount
-Represents an authenticated actor.
+### 用户账号 `UserAccount`
+
+表示一个可认证的实际操作身份。
 
 - `id`
 - `username`
 - `password_hash`
-- `actor_type` (`STUDENT`, `GUARDIAN`, `STAFF`)
+- `actor_type`：`STUDENT` / `GUARDIAN` / `STAFF`
 - `status`
 - `last_login_at`
 
-### GuardianRelationship
-Links a guardian actor to one or more students.
+### 家长关系 `GuardianRelationship`
+
+将一个家长账号绑定到一个或多个学生。
 
 - `id`
 - `guardian_account_id`
@@ -34,33 +39,38 @@ Links a guardian actor to one or more students.
 - `relationship_type`
 - `is_active`
 
-### TeacherProfile
+### 教师档案 `TeacherProfile`
+
 - `id`
 - `user_account_id`
 - `staff_id`
 - `display_name`
 - `status`
 
-### AcademicYear
+### 学年 `AcademicYear`
+
 - `id`
 - `name`
 - `starts_on`
 - `ends_on`
 - `is_active`
 
-### ClassGroup
+### 班级 `ClassGroup`
+
 - `id`
 - `academic_year_id`
 - `name`
 - `grade_level`
 
-### Subject
+### 学科 `Subject`
+
 - `id`
 - `code`
 - `name`
 
-### TeachingAssignment
-Links teachers to subjects/classes.
+### 任课关系 `TeachingAssignment`
+
+连接教师、学科和班级。
 
 - `id`
 - `teacher_id`
@@ -70,7 +80,8 @@ Links teachers to subjects/classes.
 - `ends_on`
 - `is_active`
 
-### HomeroomAssignment
+### 班主任关系 `HomeroomAssignment`
+
 - `id`
 - `teacher_id`
 - `class_group_id`
@@ -78,7 +89,8 @@ Links teachers to subjects/classes.
 - `ends_on`
 - `is_active`
 
-### StudentClassMembership
+### 学生班级关系 `StudentClassMembership`
+
 - `id`
 - `student_id`
 - `class_group_id`
@@ -86,7 +98,8 @@ Links teachers to subjects/classes.
 - `ends_on`
 - `is_active`
 
-### ReportCycle
+### 报告周期 `ReportCycle`
+
 - `id`
 - `academic_year_id`
 - `name`
@@ -96,59 +109,64 @@ Links teachers to subjects/classes.
 - `publication_at`
 - `status`
 
-### SubjectComment
-Subject-level teacher input.
+### 学科评价 `SubjectComment`
+
+表示一位学科教师对一名学生在某个报告周期内的结构化输入。
 
 - `id`
 - `report_cycle_id`
 - `student_id`
 - `subject_id`
 - `teacher_id`
-- `student_feedback`
-- `guardian_message`
-- `staff_note`
-- `status` (`DRAFT`, `SUBMITTED`, `RETURNED`, `ACCEPTED`)
+- `student_feedback`：学生可见学习反馈
+- `guardian_message`：仅家长可见留言
+- `staff_note`：教职工内部备注
+- `status`：`DRAFT` / `SUBMITTED` / `RETURNED` / `ACCEPTED`
 - `submitted_at`
 - `updated_at`
 
-### StudentReport
-Whole-student report for one cycle.
+### 学生整体报告 `StudentReport`
+
+表示一名学生在一个报告周期中的完整报告。
 
 - `id`
 - `report_cycle_id`
 - `student_id`
-- `overall_summary_student`
-- `overall_summary_guardian`
-- `status` (`DRAFT`, `CHECKED`, `APPROVED`, `READY_TO_PUBLISH`, `PUBLISHED`)
+- `overall_summary_student`：学生可见总评
+- `overall_summary_guardian`：家长可见总评
+- `status`：`DRAFT` / `CHECKED` / `APPROVED` / `READY_TO_PUBLISH` / `PUBLISHED`
 - `version`
 - `approved_by`
 - `approved_at`
 - `published_at`
 
-### ReviewAction
+### 审核动作 `ReviewAction`
+
 - `id`
 - `student_report_id`
 - `actor_id`
-- `action` (`APPROVE`, `RETURN`, `ESCALATE`)
+- `action`：`APPROVE` / `RETURN` / `ESCALATE`
 - `comment`
 - `created_at`
 
-### Notification
-Outbox record, not the report itself.
+### 通知 `Notification`
+
+通知只是 Outbox 记录，不是正式报告本体。
 
 - `id`
 - `student_report_id`
 - `recipient_actor_id`
-- `channel` (`EMAIL`, future channels)
+- `channel`：`EMAIL`，未来可增加其他渠道
 - `destination`
-- `status` (`PENDING`, `SENT`, `FAILED`)
+- `status`：`PENDING` / `SENT` / `FAILED`
 - `attempt_count`
 - `sent_at`
 - `last_error`
 
-A uniqueness rule should prevent duplicate notification creation for the same report, recipient, and channel.
+应建立唯一约束，防止同一报告、同一接收人、同一渠道重复生成通知。
 
-### AuditEvent
+### 审计事件 `AuditEvent`
+
 - `id`
 - `actor_id`
 - `event_type`
@@ -157,11 +175,12 @@ A uniqueness rule should prevent duplicate notification creation for the same re
 - `metadata`
 - `created_at`
 
-## Important rules
+## 关键业务规则
 
-1. Names are display values, not relationship keys.
-2. Email addresses are notification destinations, not student identity.
-3. AI output must never create or overwrite guardian/student relationships.
-4. Publication is a state transition, not an email-send action.
-5. Report content should be versionable.
-6. Real production fields containing personal information require explicit retention, access, and audit policies.
+1. 姓名只是显示字段，不是关系主键。
+2. 邮箱只是通知地址，不是学生身份。
+3. AI 不得创建、修改或覆盖学生—家长关系。
+4. “发布报告”是一种业务状态变更，不等于“发送邮件”。
+5. 正式报告必须支持版本记录。
+6. 正式环境中的个人信息字段必须配置明确的访问、留存和审计规则。
+7. 家长与学生访问同一学生档案，但服务器必须根据实际登录角色控制字段可见性。
