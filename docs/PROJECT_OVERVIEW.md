@@ -1,74 +1,86 @@
-# Project Overview
+# 项目总览
 
-## Project name
+## 项目名称
 
-School Digital Platform
+学校数字化平台（School Digital Platform）
 
-## Initial product
+## 第一阶段产品
 
-Learning Report System V0.1
+学习报告系统 V0.1
 
-## Problem statement
+## 项目背景
 
-Schools often distribute learning reports through fragmented teacher-to-parent email workflows. This creates duplication, inconsistent formatting, weak auditability, privacy risk, recipient mistakes, and unnecessary staff workload.
+很多学校仍然依赖教师各自给家长发送邮件来完成学习反馈。这种方式会造成重复劳动、格式不统一、难以审计、容易错发、隐私风险高，也无法形成学校统一的数据资产。
 
-The platform replaces distributed email reporting with a school-controlled publication workflow. Reports remain inside the school system. External email is used only to notify guardians that a report is available.
+本项目将这种分散式邮件流程改造成学校统一控制的“生成—审核—发布—通知”工作流。正式学习报告保留在学校系统中，外部邮箱只负责通知家长报告已经发布。
 
-## Core principles
+## 核心原则
 
-1. One Student, One Permanent ID, Multiple Roles, Different Views.
-2. Report stays inside the school. Notification goes outside.
-3. Teachers provide educational facts and judgements; AI may assist expression but must not invent facts.
-4. Recipient identity and permissions come from structured school data, never from AI inference.
-5. Student and guardian views may differ.
-6. Staff-only notes must remain inaccessible to students and guardians unless explicitly published.
-7. The platform must function without AI.
-8. The architecture should minimize vendor lock-in.
-9. Production changes must be auditable.
-10. Development and testing must use synthetic data until production readiness is established.
+1. 一个学生，一个永久学号，多种身份，不同视图。
+2. 报告留在学校系统内，外部只发送通知。
+3. 教师负责教育事实和专业判断；AI 可以辅助表达，但不能编造事实。
+4. 学生、家长、班级和收件关系必须来自学校结构化数据，不能由 AI 推断。
+5. 学生视图和家长视图可以不同。
+6. 教职工内部备注默认不得向学生或家长显示，除非业务规则明确发布。
+7. 平台在没有 AI 的情况下仍必须完整运行。
+8. 架构应尽量减少对单一大厂平台和供应商的绑定。
+9. 正式环境中的关键操作必须可审计。
+10. 在正式上线前，开发和测试阶段只使用虚拟数据。
+11. 用户界面和业务语言以简体中文为默认语言。
+12. 技术代码、数据库字段、API 和枚举保持英文，降低维护成本。
 
-## Initial roles
+## 初始角色
 
-### Student
-Can access student-visible notices, assignments, reports, assessment information, and other authorised resources.
+### 学生（Student）
+可查看学生本人有权限看到的通知、作业、学习报告、评价、成绩等资源。
 
-### Guardian
-Can access guardian-visible information associated with the student, including parent-only learning comments where permitted.
+### 家长 / 监护人（Guardian）
+可查看与其绑定学生相关的家长可见内容，包括仅对家长开放的教师评价、建议或留言。
 
-### Subject Teacher
-Can create and submit subject-level feedback for assigned students.
+### 学科教师（Subject Teacher）
+可为自己任教学科和学生创建、修改并提交学科层面的学习反馈。
 
-### Homeroom Teacher
-Can review the whole-student report, detect missing or inconsistent content, return content for revision, and approve reports.
+### 班主任（Homeroom Teacher）
+可查看学生整体报告，检查缺失项、冲突项或异常内容，并执行退回、审核和批准。
 
-### Academic Admin
-Can manage report cycles, inspect exceptions, oversee publication readiness, and escalate cases.
+### 学术管理员（Academic Admin）
+可管理报告周期、查看异常状态、监督整体发布准备情况，并根据学校制度处理升级事项。
 
-### System Admin
-Can manage platform operation, accounts, infrastructure, and technical configuration. System administration does not imply unrestricted educational-content access.
+### 系统管理员（System Admin）
+负责平台账号、服务器、数据库、部署、备份和技术配置。系统管理员身份不等于默认拥有查看全部教育内容的权限。
 
-## Initial workflow
+## 初始工作流
 
-1. Report cycle is created.
-2. Subject teachers enter structured feedback.
-3. Teachers save drafts and submit.
-4. Automated validation runs.
-5. Homeroom teacher reviews the complete student report.
-6. Missing or problematic items are returned for correction.
-7. Approved reports become ready for publication.
-8. School publishes reports.
-9. Guardian and student views are rendered according to visibility rules.
-10. Notification service sends external alerts only.
-11. Views, approvals, publication, and administrative actions are logged.
+1. 创建本周 / 本周期报告任务。
+2. 学科教师填写结构化评价。
+3. 教师保存草稿并提交。
+4. 系统执行自动校验。
+5. 班主任查看学生完整报告。
+6. 缺失或异常内容退回修改。
+7. 审核通过后进入“待发布”状态。
+8. 学校统一发布报告。
+9. 系统根据权限生成学生视图和家长视图。
+10. 通知服务只向外发送“报告已发布”等提醒。
+11. 查看、提交、审核、批准、发布和重要管理操作全部记录日志。
 
 ## Milestone 1
 
-Use synthetic data only and complete the following path:
+只使用虚拟数据跑通：
 
-Teacher -> Submit -> Homeroom Review -> Approve -> Publish -> Guardian View / Student View
+`教师填写 -> 提交 -> 班主任审核 -> 批准 -> 发布 -> 家长查看 / 学生查看`
 
-Milestone 1 deliberately excludes production email, real students, external AI, and production deployment.
+Milestone 1 明确不包含：真实学生数据、正式邮件发送、外部 AI、正式生产部署。
 
-## Long-term direction
+## 长期方向
 
-Future modules may include notices, homework, attendance, assessment, parent meetings, longitudinal learning analysis, and AI-assisted summaries. These should reuse the same identity, permission, audit, and student-data foundations rather than creating separate silos.
+未来可以逐步扩展：
+
+- 学校通知
+- 作业管理
+- 考勤
+- 成绩与测评
+- 家长会
+- 学生长期成长记录
+- AI 辅助总结与趋势分析
+
+这些模块应复用同一套学生身份、权限、审计和数据基础，而不是分别建设互不相通的小系统。
