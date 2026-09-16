@@ -10,6 +10,7 @@ from apps.academics.models import HomeroomAssignment, TeachingAssignment
 from apps.reports.models import StudentReport, SubjectComment
 from apps.reports.policies import (
     can_edit_report_subject,
+    can_manage_report_cycles,
     can_publish_report,
     can_review_report,
     has_report_subject_scope,
@@ -23,6 +24,7 @@ from apps.reports.services import (
     save_subject_comment,
     submit_subject_comment,
 )
+from apps.schools.models import School
 from apps.students.models import GuardianRelationship, StudentSchoolMembership
 
 
@@ -331,7 +333,11 @@ def demo_reset(request):
     if request.method != "POST" or not getattr(settings, "DEMO_MODE", False):
         raise PermissionDenied
 
-    from .demo_data import reset_demo_workflow
+    from .demo_data import DEMO_SCHOOL_CODE, reset_demo_workflow
+
+    school = School.objects.filter(code=DEMO_SCHOOL_CODE, status=School.Status.ACTIVE).first()
+    if school is None or not can_manage_report_cycles(request.user, school):
+        raise PermissionDenied
 
     try:
         reset_demo_workflow(actor=request.user)
