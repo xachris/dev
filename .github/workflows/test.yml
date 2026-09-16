@@ -43,4 +43,15 @@ jobs:
       - run: python backend/manage.py check
       - run: python backend/manage.py makemigrations --check --dry-run
       - run: python backend/manage.py migrate --noinput
+      - name: Verify production static collection
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+        run: python backend/manage.py collectstatic --noinput
+      - name: Verify idempotent Pilot seed under production settings
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DEMO_MODE: "true"
+        run: |
+          python backend/manage.py seed_demo
+          python backend/manage.py seed_demo
       - run: python backend/manage.py test apps
