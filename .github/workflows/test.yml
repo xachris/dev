@@ -41,5 +41,6 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: python backend/manage.py check
+      - run: python backend/manage.py makemigrations --check --dry-run
       - run: python backend/manage.py migrate --noinput
       - run: python backend/manage.py test apps
