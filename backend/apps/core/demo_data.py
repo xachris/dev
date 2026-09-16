@@ -12,8 +12,7 @@ from apps.academics.models import (
     Subject,
     TeachingAssignment,
 )
-from apps.reports.models import ReportAction, ReportCycle, StudentReport, SubjectComment
-from apps.reports.policies import can_manage_report_cycles
+from apps.reports.models import ReportCycle, StudentReport
 from apps.reports.services import create_student_report
 from apps.schools.models import AcademicYear, School
 from apps.students.models import GuardianRelationship, Student, StudentSchoolMembership
@@ -231,24 +230,7 @@ def ensure_demo_data():
 
 @transaction.atomic
 def reset_demo_workflow(*, actor):
-    data = ensure_demo_data()
-    school = data["school"]
-    if not can_manage_report_cycles(actor, school):
-        raise ValidationError("只有演示学校的学术管理员可以重置演示流程。")
+    """兼容旧 Pilot 入口，但 Phase 7 起重置整个演示花名册，而不是只重置 A001。"""
+    from .demo_roster import reset_demo_roster
 
-    report = data["report"]
-    ReportAction.objects.filter(report=report).delete()
-    report.subject_comments.update(
-        created_by=None,
-        student_feedback="",
-        guardian_message="",
-        staff_note="",
-        status=SubjectComment.Status.DRAFT,
-        submitted_by=None,
-        submitted_at=None,
-    )
-    report.status = StudentReport.Status.DRAFT
-    report.published_by = None
-    report.published_at = None
-    report.save(update_fields=["status", "published_by", "published_at", "updated_at"])
-    return report
+    return reset_demo_roster(actor=actor)

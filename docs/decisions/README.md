@@ -33,3 +33,4 @@
 ## 当前 ADR
 
 - [`ADR-001-frontend-strategy.md`](ADR-001-frontend-strategy.md)：当前默认使用 Django Templates + CSS + 少量 JavaScript；只有真实业务交互复杂度和 Pilot 证据足以支持时，再评估 React / Next.js 等更复杂前端。
+- [`ADR-002-teacher-input-channels.md`](ADR-002-teacher-input-channels.md)：连续录入、Excel/CSV、自然语言和语音都是同一教育事实的输入通道；必须汇入相同 Policy / Service，AI 只能产生候选草稿，不能绕过身份与权限直接写数据库。

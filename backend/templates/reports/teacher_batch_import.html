@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}批量导入 · {{ assignment.subject.name }}{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Bulk import</p>
+        <h1>{{ assignment.class_group.name }} · {{ assignment.subject.name }}</h1>
+        <p class="muted">{{ cycle.name }} · 按稳定学号匹配，不使用姓名作为唯一身份。</p>
+    </div>
+    <a class="button secondary" href="{% url 'core:teacher_batch' assignment.id cycle.id %}">返回连续录入</a>
+</section>
+
+<section class="section-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Step 1</p>
+            <h2>下载带花名册模板</h2>
+        </div>
+    </div>
+    <p class="muted">模板已经带入当前任课分组的学号和姓名。建议直接在模板上填写，避免复制错学生。</p>
+    <div class="action-row">
+        <a class="button secondary" href="{% url 'core:teacher_batch_template' assignment.id cycle.id 'xlsx' %}">下载 Excel 模板</a>
+        <a class="button secondary" href="{% url 'core:teacher_batch_template' assignment.id cycle.id 'csv' %}">下载 CSV 模板</a>
+    </div>
+    <div class="import-help">
+        <strong>字段：</strong>
+        <code>学号</code>、<code>姓名</code>、<code>学生反馈</code>、<code>家长信息</code>、<code>内部备注</code>、<code>动作</code>
+        <p class="muted small"><code>动作</code> 可填 DRAFT 或 SUBMIT。默认建议 DRAFT，先让老师在系统里抽查后再提交。</p>
+    </div>
+</section>
+
+<section class="section-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Step 2</p>
+            <h2>上传并预检</h2>
+        </div>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="stack-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="preview">
+        <label>
+            <span>Excel (.xlsx) 或 CSV (.csv)</span>
+            <input type="file" name="file" accept=".xlsx,.csv" required>
+        </label>
+        <div class="locked-note">上传只会做预检，不会立即写入。系统会重新核对学号、姓名、当前任课范围、报告状态和编辑权限。</div>
+        <button class="button primary" type="submit">预检文件</button>
+    </form>
+</section>
+
+{% if preview %}
+<section class="section-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Step 3</p>
+            <h2>确认预检结果</h2>
+        </div>
+        {% if has_errors %}<span class="status status-returned">存在错误</span>{% else %}<span class="status status-submitted">可导入</span>{% endif %}
+    </div>
+    <div class="table-wrap import-preview-table">
+        <table>
+            <thead>
+                <tr><th>行</th><th>学号</th><th>姓名</th><th>学生反馈</th><th>动作</th><th>检查</th></tr>
+            </thead>
+            <tbody>
+            {% for row in preview %}
+                <tr class="{% if not row.valid %}import-error-row{% endif %}">
+                    <td>{{ row.row_number }}</td>
+                    <td><strong>{{ row.student_number }}</strong></td>
+                    <td>{{ row.student_name|default:row.student_name_actual }}</td>
+                    <td class="import-feedback-cell">{{ row.student_feedback|truncatechars:100 }}</td>
+                    <td><code>{{ row.action }}</code></td>
+                    <td>
+                        {% if row.valid %}
+                        <span class="status status-submitted">通过</span>
+                        {% else %}
+                        <ul class="compact-errors">
+                            {% for error in row.errors %}<li>{{ error }}</li>{% endfor %}
+                        </ul>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not has_errors %}
+    <form method="post" class="confirm-import">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="confirm">
+        <div class="locked-note">确认时系统会再次检查当前权限和评价状态。任意一行发生变化，整批导入都会停止，不会出现“半批成功、半批失败”。</div>
+        <button class="button primary" type="submit">确认导入 {{ preview|length }} 行</button>
+    </form>
+    {% else %}
+    <div class="locked-note">请先修正文件中的错误，再重新上传预检。当前不会写入任何评价。</div>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

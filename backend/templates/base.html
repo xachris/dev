@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}学校数字化平台{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    {% block head %}{% endblock %}
 </head>
 <body>
 <header class="topbar">
@@ -31,5 +32,6 @@
     {% endif %}
     {% block content %}{% endblock %}
 </main>
+{% block scripts %}{% endblock %}
 </body>
 </html>

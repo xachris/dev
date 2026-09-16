@@ -4,3 +4,4 @@ python-dotenv>=1.0,<2.0
 dj-database-url>=2.3,<3.0
 whitenoise>=6.9,<7.0
 gunicorn>=23.0,<24.0
+openpyxl>=3.1,<4.0
