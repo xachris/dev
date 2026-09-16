@@ -61,12 +61,16 @@ class AcademicStructureTests(TestCase):
 
     def test_subject_code_is_unique_inside_school(self):
         Subject.objects.create(school=self.school_a, code="CS", name="Computer Science")
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            Subject.objects.create(school=self.school_a, code="CS", name="重复学科")
+        with self.assertRaises(ValidationError):
+            Subject.objects.create(school=self.school_a, code="cs", name="重复学科")
+
+    def test_subject_code_is_normalised(self):
+        subject = Subject.objects.create(school=self.school_a, code=" cs ", name="Computer Science")
+        self.assertEqual(subject.code, "CS")
 
     def test_same_subject_code_is_allowed_across_schools(self):
         Subject.objects.create(school=self.school_a, code="CS", name="Computer Science")
-        Subject.objects.create(school=self.school_b, code="CS", name="Computer Science")
+        Subject.objects.create(school=self.school_b, code="cs", name="Computer Science")
         self.assertEqual(Subject.objects.filter(code="CS").count(), 2)
 
     def test_student_can_join_one_homeroom_and_multiple_teaching_groups(self):
@@ -105,13 +109,26 @@ class AcademicStructureTests(TestCase):
         with self.assertRaises(ValidationError):
             StudentClassMembership.objects.create(student_membership=self.student_a, class_group=class_b)
 
-    def test_inactive_school_membership_cannot_have_active_class_membership(self):
+    def test_inactive_school_membership_cannot_have_new_active_class_membership(self):
         self.student_a.status = StudentSchoolMembership.Status.WITHDRAWN
         self.student_a.save(update_fields=["status"])
         homeroom = ClassGroup.objects.create(academic_year=self.year_a, name="G8A")
 
         with self.assertRaises(ValidationError):
             StudentClassMembership.objects.create(student_membership=self.student_a, class_group=homeroom)
+
+    def test_existing_class_membership_becomes_effectively_inactive_when_student_leaves(self):
+        homeroom = ClassGroup.objects.create(academic_year=self.year_a, name="G8A")
+        membership = StudentClassMembership.objects.create(
+            student_membership=self.student_a,
+            class_group=homeroom,
+        )
+        self.assertTrue(StudentClassMembership.objects.active().filter(pk=membership.pk).exists())
+
+        self.student_a.status = StudentSchoolMembership.Status.WITHDRAWN
+        self.student_a.save(update_fields=["status"])
+
+        self.assertFalse(StudentClassMembership.objects.active().filter(pk=membership.pk).exists())
 
     def test_teaching_assignment_requires_teacher_role(self):
         admin_user = UserAccount.objects.create_user(username="admin.a", password="test-password-only")
@@ -168,6 +185,35 @@ class AcademicStructureTests(TestCase):
 
         self.assertEqual(TeachingAssignment.objects.filter(class_group=group, subject=subject).count(), 2)
 
+    def test_existing_teaching_assignment_becomes_effectively_inactive_when_teacher_role_stops(self):
+        group = ClassGroup.objects.create(academic_year=self.year_a, name="G8 CS")
+        subject = Subject.objects.create(school=self.school_a, code="CS", name="Computer Science")
+        assignment = TeachingAssignment.objects.create(
+            teacher_role=self.teacher_role,
+            class_group=group,
+            subject=subject,
+        )
+        self.assertTrue(TeachingAssignment.objects.active().filter(pk=assignment.pk).exists())
+
+        self.teacher_role.is_active = False
+        self.teacher_role.save(update_fields=["is_active"])
+
+        self.assertFalse(TeachingAssignment.objects.active().filter(pk=assignment.pk).exists())
+
+    def test_existing_teaching_assignment_becomes_effectively_inactive_when_account_stops(self):
+        group = ClassGroup.objects.create(academic_year=self.year_a, name="G8 CS")
+        subject = Subject.objects.create(school=self.school_a, code="CS", name="Computer Science")
+        assignment = TeachingAssignment.objects.create(
+            teacher_role=self.teacher_role,
+            class_group=group,
+            subject=subject,
+        )
+
+        self.teacher_user.is_active = False
+        self.teacher_user.save(update_fields=["is_active"])
+
+        self.assertFalse(TeachingAssignment.objects.active().filter(pk=assignment.pk).exists())
+
     def test_homeroom_assignment_requires_homeroom_group(self):
         teaching_group = ClassGroup.objects.create(
             academic_year=self.year_a,
@@ -187,6 +233,17 @@ class AcademicStructureTests(TestCase):
                 teacher_role=self.teacher_role,
                 class_group=homeroom_b,
             )
+
+    def test_existing_homeroom_assignment_becomes_effectively_inactive_when_teacher_role_stops(self):
+        homeroom = ClassGroup.objects.create(academic_year=self.year_a, name="G8A")
+        assignment = HomeroomAssignment.objects.create(
+            teacher_role=self.teacher_role,
+            class_group=homeroom,
+        )
+        self.teacher_role.is_active = False
+        self.teacher_role.save(update_fields=["is_active"])
+
+        self.assertFalse(HomeroomAssignment.objects.active().filter(pk=assignment.pk).exists())
 
     def test_for_school_queries_do_not_leak_other_school_records(self):
         group_a = ClassGroup.objects.create(academic_year=self.year_a, name="G8A")
