@@ -33,16 +33,16 @@
             <strong>学习反馈</strong>
             <p>{{ item.student_feedback|default:"无" }}</p>
         </div>
-        {% if item.guardian_message is not None %}
+        {% if item.guardian_message %}
         <div class="field-block guardian-field">
             <strong>家长专属信息</strong>
-            <p>{{ item.guardian_message|default:"无" }}</p>
+            <p>{{ item.guardian_message }}</p>
         </div>
         {% endif %}
-        {% if item.staff_note is not None %}
+        {% if item.staff_note %}
         <div class="field-block staff-field">
             <strong>教职工内部备注</strong>
-            <p>{{ item.staff_note|default:"无" }}</p>
+            <p>{{ item.staff_note }}</p>
         </div>
         {% endif %}
     </article>
