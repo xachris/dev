@@ -12,7 +12,7 @@ from apps.core.policies import can_access_student_space
 from apps.schools.models import School
 from apps.students.models import GuardianRelationship, StudentSchoolMembership
 
-from .models import ReportCycle, StudentReport, SubjectComment
+from .models import StudentReport, SubjectComment
 
 
 def _active_authenticated_user(user) -> bool:
@@ -47,12 +47,12 @@ def _student_group_ids_for_report(report: StudentReport) -> QuerySet:
     ).values("class_group_id")
 
 
-def can_edit_report_subject(
+def has_report_subject_scope(
     user: UserAccount,
     report: StudentReport,
     subject,
 ) -> bool:
-    """当前教师是否仍有权维护这份报告中的指定学科评价。"""
+    """当前教师是否对这份报告中的指定学科仍有真实业务职责。"""
     if (
         not _active_authenticated_user(user)
         or not report
@@ -61,7 +61,6 @@ def can_edit_report_subject(
         or report.student_membership.status != StudentSchoolMembership.Status.ACTIVE
         or not report.report_cycle.academic_year.is_active
         or subject.school_id != report.school.id
-        or report.status in {StudentReport.Status.APPROVED, StudentReport.Status.PUBLISHED}
     ):
         return False
 
@@ -72,6 +71,19 @@ def can_edit_report_subject(
         class_group__academic_year=report.report_cycle.academic_year,
         class_group_id__in=_student_group_ids_for_report(report),
     ).exists()
+
+
+def can_edit_report_subject(
+    user: UserAccount,
+    report: StudentReport,
+    subject,
+) -> bool:
+    """教师既有真实学科职责，并且报告尚未被批准 / 发布时才可编辑。"""
+    return bool(
+        report
+        and report.status not in {StudentReport.Status.APPROVED, StudentReport.Status.PUBLISHED}
+        and has_report_subject_scope(user, report, subject)
+    )
 
 
 def can_review_report(user: UserAccount, report: StudentReport) -> bool:
@@ -139,8 +151,9 @@ def subject_comment_content_for(user: UserAccount, comment: SubjectComment) -> d
 
     report = comment.report
 
-    # 实际负责该学科的教师可查看并维护自己业务范围内的三类内容。
-    if can_edit_report_subject(user, report, comment.subject):
+    # 实际负责该学科的教师在当前学年内可查看自己业务范围的三类内容；
+    # 报告批准后只是失去编辑权，不会因为状态变化连合理的读取权也消失。
+    if has_report_subject_scope(user, report, comment.subject):
         return {
             "student_feedback": comment.student_feedback,
             "guardian_message": comment.guardian_message,
