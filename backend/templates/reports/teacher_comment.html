@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}学科评价 · {{ comment.subject.name }}{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Subject comment</p>
+        <h1>{{ comment.report.student_membership.student.full_name }} · {{ comment.subject.name }}</h1>
+        <p class="muted">{{ comment.report.student_membership.student_number }} · {{ comment.report.report_cycle.name }} · {{ comment.get_status_display }}</p>
+    </div>
+    <a class="button secondary" href="{% url 'core:dashboard' %}">返回工作台</a>
+</section>
+
+<section class="section-card">
+    <form method="post" class="stack-form">
+        {% csrf_token %}
+        <label>
+            <span>学生可见反馈 <strong class="required">必填</strong></span>
+            <textarea name="student_feedback" rows="7" {% if not editable %}readonly{% endif %}>{{ comment.student_feedback }}</textarea>
+            <small>学生本人和家长在报告发布后都可以看到。</small>
+        </label>
+        <label>
+            <span>家长专属信息</span>
+            <textarea name="guardian_message" rows="5" {% if not editable %}readonly{% endif %}>{{ comment.guardian_message }}</textarea>
+            <small>仅授权家长和具有明确审核职责的教职工可见。</small>
+        </label>
+        <label>
+            <span>教职工内部备注</span>
+            <textarea name="staff_note" rows="4" {% if not editable %}readonly{% endif %}>{{ comment.staff_note }}</textarea>
+            <small>不会向学生或家长展示。</small>
+        </label>
+        {% if editable %}
+        <div class="action-row">
+            <button class="button secondary" type="submit" name="action" value="save">保存草稿</button>
+            <button class="button primary" type="submit" name="action" value="submit">提交评价</button>
+        </div>
+        {% else %}
+        <div class="locked-note">当前评价已提交或报告已锁定。需要修改时，应由班主任退回对应学科。</div>
+        {% endif %}
+    </form>
+</section>
+{% endblock %}
