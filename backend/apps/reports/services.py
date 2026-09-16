@@ -7,7 +7,13 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.academics.models import ClassGroup, StudentClassMembership, Subject, TeachingAssignment
+from apps.academics.models import (
+    ClassGroup,
+    HomeroomAssignment,
+    StudentClassMembership,
+    Subject,
+    TeachingAssignment,
+)
 from apps.students.models import StudentSchoolMembership
 
 from .models import ReportAction, ReportCycle, StudentReport, SubjectComment
@@ -67,7 +73,11 @@ def create_report_cycle(*, actor, academic_year, name: str) -> ReportCycle:
 
 
 def create_student_report(*, actor, report_cycle: ReportCycle, student_membership) -> StudentReport:
-    """创建学生报告容器，但不复制任何学科内容。"""
+    """创建学生报告容器，但不复制任何学科内容。
+
+    如果学生没有真实班主任或班级，流程从一开始就不可审核，因此直接拒绝，
+    不生成一条以后需要人工排查的“僵尸报告”。
+    """
     if not can_manage_report_cycles(actor, report_cycle.school):
         raise ValidationError("当前用户无权创建该学校的学生报告。")
     if not report_cycle.academic_year.is_active:
@@ -77,14 +87,23 @@ def create_student_report(*, actor, report_cycle: ReportCycle, student_membershi
     if student_membership.status != StudentSchoolMembership.Status.ACTIVE:
         raise ValidationError("只有当前在读学生可以进入新的报告周期。")
 
-    has_homeroom = StudentClassMembership.objects.filter(
+    homeroom_group_ids = StudentClassMembership.objects.filter(
         student_membership=student_membership,
         is_active=True,
         class_group__academic_year=report_cycle.academic_year,
         class_group__group_type=ClassGroup.GroupType.HOMEROOM,
-    ).exists()
-    if not has_homeroom:
+    ).values("class_group_id")
+
+    if not homeroom_group_ids.exists():
         raise ValidationError("学生在该学年没有有效班主任班级，无法进入报告审核流程。")
+
+    has_reviewer = HomeroomAssignment.objects.active().filter(
+        class_group_id__in=homeroom_group_ids,
+        class_group__academic_year=report_cycle.academic_year,
+        teacher_role__school=report_cycle.school,
+    ).exists()
+    if not has_reviewer:
+        raise ValidationError("学生所在班级没有有效班主任，无法进入报告审核流程。")
 
     return StudentReport.objects.create(
         report_cycle=report_cycle,
@@ -109,16 +128,20 @@ def save_subject_comment(
         raise ValidationError("当前用户无权编辑该学生的这一学科评价。")
 
     with transaction.atomic():
+        locked_report = StudentReport.objects.select_for_update().get(pk=report.pk)
+        if locked_report.status in {StudentReport.Status.APPROVED, StudentReport.Status.PUBLISHED}:
+            raise ValidationError("当前报告已经锁定，不能继续修改学科评价。")
+
         comment = SubjectComment.objects.select_for_update().filter(
-            report=report,
+            report=locked_report,
             subject=subject,
         ).first()
 
         if comment is None:
-            if report.status not in {StudentReport.Status.DRAFT, StudentReport.Status.RETURNED}:
+            if locked_report.status not in {StudentReport.Status.DRAFT, StudentReport.Status.RETURNED}:
                 raise ValidationError("当前报告状态不允许新增学科评价。")
             comment = SubjectComment(
-                report=report,
+                report=locked_report,
                 subject=subject,
                 created_by=actor,
             )
@@ -147,7 +170,10 @@ def _refresh_report_after_submission(report: StudentReport) -> None:
 
 
 def submit_subject_comment(*, actor, comment: SubjectComment) -> SubjectComment:
-    """提交或重新提交一条评价；最后一门提交后报告自动进入班主任审核。"""
+    """提交或重新提交一条评价；最后一门提交后报告自动进入班主任审核。
+
+    先锁整份 StudentReport，再锁具体 SubjectComment，使同一学生的并发提交按报告串行判断完整性。
+    """
     if not can_edit_report_subject(actor, comment.report, comment.subject):
         raise ValidationError("当前用户无权提交这一学科评价。")
     if comment.status not in {SubjectComment.Status.DRAFT, SubjectComment.Status.RETURNED}:
@@ -156,14 +182,15 @@ def submit_subject_comment(*, actor, comment: SubjectComment) -> SubjectComment:
         raise ValidationError("提交前必须填写学生可见学习反馈。")
 
     with transaction.atomic():
-        locked = SubjectComment.objects.select_for_update().select_related(
-            "report",
-            "report__report_cycle",
-            "report__report_cycle__academic_year",
-            "report__student_membership",
-            "subject",
-        ).get(pk=comment.pk)
+        locked_report = StudentReport.objects.select_for_update().select_related(
+            "report_cycle",
+            "report_cycle__academic_year",
+            "student_membership",
+        ).get(pk=comment.report_id)
+        locked = SubjectComment.objects.select_for_update().select_related("subject").get(pk=comment.pk)
 
+        if locked_report.status in {StudentReport.Status.APPROVED, StudentReport.Status.PUBLISHED}:
+            raise ValidationError("报告已经锁定，不能继续提交评价。")
         if locked.status not in {SubjectComment.Status.DRAFT, SubjectComment.Status.RETURNED}:
             raise ValidationError("评价状态已经变化，请刷新后重试。")
 
@@ -171,7 +198,7 @@ def submit_subject_comment(*, actor, comment: SubjectComment) -> SubjectComment:
         locked.submitted_by = actor
         locked.submitted_at = timezone.now()
         locked.save(update_fields=["status", "submitted_by", "submitted_at", "updated_at"])
-        _refresh_report_after_submission(locked.report)
+        _refresh_report_after_submission(locked_report)
         return locked
 
 
@@ -193,8 +220,8 @@ def return_subject_comment(
         raise ValidationError("只有已提交的学科评价可以退回。")
 
     with transaction.atomic():
-        locked = SubjectComment.objects.select_for_update().select_related("report").get(pk=comment.pk)
-        report = StudentReport.objects.select_for_update().get(pk=locked.report_id)
+        report = StudentReport.objects.select_for_update().get(pk=comment.report_id)
+        locked = SubjectComment.objects.select_for_update().get(pk=comment.pk)
 
         if report.status != StudentReport.Status.IN_REVIEW or locked.status != SubjectComment.Status.SUBMITTED:
             raise ValidationError("报告状态已经变化，请刷新后重试。")
