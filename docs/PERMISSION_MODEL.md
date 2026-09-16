@@ -1,96 +1,97 @@
-# Permission Model
+# 权限模型
 
-## Core rule
+## 核心规则
 
-**One Student, One Permanent ID, Multiple Roles, Different Views.**
+**一个学生，一个永久学号，多种身份，不同视图。**
 
-A student record is stable. Different authenticated actors may access different portions of that record according to role, relationship, assignment, and content visibility.
+学生档案本身保持稳定，不同登录身份根据角色、关系、任课范围和内容可见级别访问不同部分。
 
-## Primary roles
+## 主要角色
 
-- Student
-- Guardian
-- Subject Teacher
-- Homeroom Teacher
-- Academic Admin
-- System Admin
+- 学生（Student）
+- 家长 / 监护人（Guardian）
+- 学科教师（Subject Teacher）
+- 班主任（Homeroom Teacher）
+- 学术管理员（Academic Admin）
+- 系统管理员（System Admin）
 
-## Visibility classes
+## 内容可见级别
 
-### STUDENT_GUARDIAN
-Visible to the student and authorised guardians, as well as authorised staff.
+### 学生与家长可见 `STUDENT_GUARDIAN`
 
-Examples:
-- homework and assignment information
-- general learning progress
-- strengths
-- student-facing next steps
-- ordinary school notices
+学生本人、已授权家长和有业务权限的教职工可见。
 
-### GUARDIAN_ONLY
-Visible to authorised guardians and authorised staff, but not the student.
+典型内容：
+- 作业与任务信息
+- 一般学习进展
+- 优势与亮点
+- 面向学生的下一步建议
+- 普通学校通知
 
-Examples:
-- teacher message to parent
-- parent guidance
-- selected behavioural concerns
-- selected academic concerns not intended for student display
+### 仅家长可见 `GUARDIAN_ONLY`
 
-### STAFF_ONLY
-Visible only to authorised staff with a legitimate role-based need.
+已授权家长和有业务权限的教职工可见，学生本人不可见。
 
-Examples:
-- internal review notes
-- workflow comments
-- escalation notes
-- sensitive internal operational information
+典型内容：
+- 教师给家长的留言
+- 家长配合建议
+- 部分行为问题
+- 不适合直接向学生展示的部分学业问题
 
-## Initial permission matrix
+### 仅教职工可见 `STAFF_ONLY`
 
-| Capability | Student | Guardian | Subject Teacher | Homeroom Teacher | Academic Admin | System Admin |
+仅具有明确业务需要的授权教职工可见。
+
+典型内容：
+- 内部审核备注
+- 工作流说明
+- 升级处理记录
+- 敏感内部运营信息
+
+## 初始权限矩阵
+
+| 能力 | 学生 | 家长 | 学科教师 | 班主任 | 学术管理员 | 系统管理员 |
 |---|---:|---:|---:|---:|---:|---:|
-| View student-visible report | Own | Linked student | Assigned students | Homeroom students | Scoped | Technical support only when authorised |
-| View guardian-only content | No | Linked student | Assigned content where required | Homeroom students | Scoped | Not by default |
-| View staff-only report content | No | No | Assigned content | Homeroom students | Scoped | Not by default |
-| Create subject feedback | No | No | Assigned students/subjects | If assigned | No | No |
-| Submit subject feedback | No | No | Own drafts | If assigned | No | No |
-| Review full student report | No | No | No | Homeroom students | Scoped | No |
-| Approve report | No | No | No | Homeroom students | Escalation/override by policy | No |
-| Publish report | No | No | No | No by default | Yes | Technical execution only |
-| Manage technical accounts | No | No | No | No | Limited | Yes |
-| Change academic relationships | No | No | No | No | Yes | No by default |
+| 查看学生可见报告 | 本人 | 已绑定学生 | 任教学生 | 本班学生 | 授权范围 | 仅在获授权技术支持时 |
+| 查看仅家长可见内容 | 否 | 已绑定学生 | 业务需要范围 | 本班学生 | 授权范围 | 默认否 |
+| 查看仅教职工内容 | 否 | 否 | 自己负责范围 | 本班学生 | 授权范围 | 默认否 |
+| 创建学科评价 | 否 | 否 | 任教学科/学生 | 如有对应任课关系 | 否 | 否 |
+| 提交学科评价 | 否 | 否 | 自己草稿 | 如有对应任课关系 | 否 | 否 |
+| 查看学生完整报告 | 否 | 否 | 否 | 本班学生 | 授权范围 | 否 |
+| 批准报告 | 否 | 否 | 否 | 本班学生 | 按制度处理升级/覆盖 | 否 |
+| 发布报告 | 否 | 否 | 否 | 默认否 | 是 | 仅执行技术操作 |
+| 管理技术账号 | 否 | 否 | 否 | 否 | 有限 | 是 |
+| 修改教学关系 | 否 | 否 | 否 | 否 | 是 | 默认否 |
 
-## Relationship checks
+## 关系校验
 
-Role alone is insufficient. Access must also satisfy contextual relationships.
+仅有角色还不够，每次访问还必须检查上下文关系。
 
-Examples:
+例如：
 
-- A guardian must be linked to the student.
-- A subject teacher must have an active teaching assignment for the student/class and subject.
-- A homeroom teacher must have an active homeroom assignment for the student/class.
-- Academic administrator access should be scoped by school, division, year group, or assigned responsibility where possible.
+- 家长必须与目标学生存在有效绑定关系。
+- 学科教师必须与目标班级 / 学科存在有效任课关系。
+- 班主任必须与目标学生所在班级存在有效班主任关系。
+- 学术管理员应尽量按校区、学部、年级或职责范围限制访问，而不是默认全校可见。
 
-## Guardian access model
+## 家长访问模型
 
-A student may have multiple authorised guardians. Each guardian should have distinct credentials or an auditable actor identity even when they access the same student record.
-
-Example:
+一名学生可以绑定多个授权家长，每位家长都应拥有独立凭证或至少拥有可审计的独立操作身份。
 
 ```text
-Student S000381
-  |- Student access
-  |- Guardian A access
-  `- Guardian B access
+学生 S000381
+  |- 学生登录
+  |- 家长 A 登录
+  `- 家长 B 登录
 ```
 
-The permanent student ID remains unchanged.
+无论谁登录，学生永久学号都不变化。
 
-## Security principles
+## 安全原则
 
-1. Deny by default.
-2. Permission checks occur server-side.
-3. Hiding a button is not an access-control mechanism.
-4. Every privileged action should be auditable.
-5. Administrative technical access does not automatically grant educational-content access.
-6. Direct database access should not be part of normal school operations.
+1. 默认拒绝，明确授权后才允许访问。
+2. 所有权限检查必须在服务器端执行。
+3. 前端隐藏按钮不等于权限控制。
+4. 高权限操作必须写入审计日志。
+5. 技术管理员权限不自动等于查看教育内容的权限。
+6. 日常学校业务不应依赖直接访问数据库完成。
