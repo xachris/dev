@@ -84,7 +84,7 @@ class Migration(migrations.Migration):
                     "school",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.PROTECT,
-                        related_name="schools_academicyear_records",
+                        related_name="%(app_label)s_%(class)s_records",
                         to="schools.school",
                     ),
                 ),
