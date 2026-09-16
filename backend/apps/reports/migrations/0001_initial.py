@@ -61,7 +61,7 @@ class Migration(migrations.Migration):
                 ("submitted_at", models.DateTimeField(blank=True, null=True, verbose_name="最近提交时间")),
                 ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="创建时间")),
                 ("updated_at", models.DateTimeField(auto_now=True, verbose_name="更新时间")),
-                ("created_by", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="created_subject_comments", to=settings.AUTH_USER_MODEL, verbose_name="创建人")),
+                ("created_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name="created_subject_comments", to=settings.AUTH_USER_MODEL, verbose_name="首位填写人")),
                 ("report", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="subject_comments", to="reports.studentreport", verbose_name="学生报告")),
                 ("subject", models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="report_comments", to="academics.subject", verbose_name="学科")),
                 ("submitted_by", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name="submitted_subject_comments", to=settings.AUTH_USER_MODEL, verbose_name="最近提交人")),
