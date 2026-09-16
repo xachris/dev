@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}工作台 · 学校数字化平台{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">My workspace</p>
+        <h1>{{ user.display_name|default:user.username }}</h1>
+        <p class="muted">系统只显示与你当前真实关系有关的任务和已发布内容。</p>
+    </div>
+    {% if demo_mode and user.username == 'academic.admin' %}
+    <form action="{% url 'core:demo_reset' %}" method="post">
+        {% csrf_token %}
+        <button class="button secondary" type="submit">重置演示报告</button>
+    </form>
+    {% endif %}
+</section>
+
+{% if teacher_comments %}
+<section class="section-card">
+    <div class="section-heading">
+        <div><p class="eyebrow">Teacher</p><h2>我的学科评价</h2></div>
+        <span class="count">{{ teacher_comments|length }} 项</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>学生</th><th>学科</th><th>周期</th><th>状态</th><th></th></tr></thead>
+            <tbody>
+            {% for comment in teacher_comments %}
+            <tr>
+                <td><strong>{{ comment.report.student_membership.student.full_name }}</strong><br><span class="muted small">{{ comment.report.student_membership.student_number }}</span></td>
+                <td>{{ comment.subject.name }}</td>
+                <td>{{ comment.report.report_cycle.name }}</td>
+                <td><span class="status status-{{ comment.status|lower }}">{{ comment.get_status_display }}</span></td>
+                <td><a class="button small-button" href="{% url 'core:teacher_comment' comment.id %}">{% if comment.status == 'SUBMITTED' %}查看{% else %}填写{% endif %}</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if homeroom_reports %}
+<section class="section-card">
+    <div class="section-heading">
+        <div><p class="eyebrow">Homeroom</p><h2>班主任报告</h2></div>
+        <span class="count">{{ homeroom_reports|length }} 份</span>
+    </div>
+    <div class="report-grid">
+        {% for report in homeroom_reports %}
+        <article class="report-card">
+            <div class="report-card-top"><span class="student-number">{{ report.student_membership.student_number }}</span><span class="status status-{{ report.status|lower }}">{{ report.get_status_display }}</span></div>
+            <h3>{{ report.student_membership.student.full_name }}</h3>
+            <p class="muted">{{ report.report_cycle.name }}</p>
+            <a class="button small-button" href="{% url 'core:homeroom_report' report.id %}">查看审核</a>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if admin_reports %}
+<section class="section-card">
+    <div class="section-heading">
+        <div><p class="eyebrow">Academic admin</p><h2>报告发布</h2></div>
+        <span class="count">{{ admin_reports|length }} 份</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>学生</th><th>周期</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+            {% for report in admin_reports %}
+            <tr>
+                <td><strong>{{ report.student_membership.student.full_name }}</strong><br><span class="muted small">{{ report.student_membership.student_number }}</span></td>
+                <td>{{ report.report_cycle.name }}</td>
+                <td><span class="status status-{{ report.status|lower }}">{{ report.get_status_display }}</span></td>
+                <td>
+                    {% if report.status == 'APPROVED' %}
+                    <form action="{% url 'core:publish_report' report.id %}" method="post" class="inline-form">
+                        {% csrf_token %}
+                        <button class="button primary small-button" type="submit">发布</button>
+                    </form>
+                    {% else %}
+                    <span class="muted small">等待流程推进</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if portal_reports %}
+<section class="section-card">
+    <div class="section-heading">
+        <div><p class="eyebrow">Portal</p><h2>已发布学习报告</h2></div>
+        <span class="count">{{ portal_reports|length }} 份</span>
+    </div>
+    <div class="report-grid">
+        {% for report in portal_reports %}
+        <article class="report-card">
+            <div class="report-card-top"><span class="student-number">{{ report.student_membership.student_number }}</span><span class="status status-published">已发布</span></div>
+            <h3>{{ report.student_membership.student.full_name }}</h3>
+            <p class="muted">{{ report.report_cycle.name }}</p>
+            <a class="button small-button" href="{% url 'core:report_view' report.id %}">查看报告</a>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if not teacher_comments and not homeroom_reports and not admin_reports and not portal_reports %}
+<section class="empty-state">
+    <p class="eyebrow">No education content</p>
+    <h2>当前没有可显示的教育内容</h2>
+    <p>如果这是系统管理员账号，这正是预期结果：技术管理权限不会自动变成学生教育内容读取权。</p>
+</section>
+{% endif %}
+{% endblock %}
