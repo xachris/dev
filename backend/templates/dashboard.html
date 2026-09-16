@@ -17,10 +17,48 @@
     {% endif %}
 </section>
 
+{% if teacher_batches %}
+<section class="section-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Teacher throughput</p>
+            <h2>按班级连续录入</h2>
+            <p class="muted small">面向大量学生的主入口。连续填写、键盘导航和 Excel / CSV 导入都从这里开始。</p>
+        </div>
+        <span class="count">{{ teacher_batches|length }} 组</span>
+    </div>
+    <div class="report-grid throughput-grid">
+        {% for batch in teacher_batches %}
+        <article class="report-card throughput-card">
+            <div class="report-card-top">
+                <span class="student-number">{{ batch.assignment.class_group.name }}</span>
+                {% if batch.remaining == 0 %}
+                <span class="status status-submitted">全部提交</span>
+                {% elif batch.returned %}
+                <span class="status status-returned">{{ batch.returned }} 项退回</span>
+                {% else %}
+                <span class="status status-draft">进行中</span>
+                {% endif %}
+            </div>
+            <h3>{{ batch.assignment.subject.name }}</h3>
+            <p class="muted">{{ batch.cycle.name }} · 已提交 {{ batch.submitted }} / {{ batch.total }}</p>
+            <div class="progress-track" aria-label="提交进度">
+                <div class="progress-fill" style="width: {% widthratio batch.submitted batch.total 100 %}%"></div>
+            </div>
+            <div class="action-row">
+                <a class="button primary small-button" href="{% url 'core:teacher_batch' batch.assignment.id batch.cycle.id %}">连续录入</a>
+                <a class="button secondary small-button" href="{% url 'core:teacher_batch_import' batch.assignment.id batch.cycle.id %}">批量导入</a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 {% if teacher_comments %}
 <section class="section-card">
     <div class="section-heading">
-        <div><p class="eyebrow">Teacher</p><h2>我的学科评价</h2></div>
+        <div><p class="eyebrow">Teacher</p><h2>单学生评价</h2><p class="muted small">保留作为精准查看 / 修改入口，不再作为大量学生录入的主路径。</p></div>
         <span class="count">{{ teacher_comments|length }} 项</span>
     </div>
     <div class="table-wrap">
