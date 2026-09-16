@@ -12,7 +12,7 @@ from apps.academics.models import (
     TeachingAssignment,
 )
 from apps.core.policies import (
-    can_access_student,
+    can_access_student_space,
     can_manage_academic_structure,
     can_manage_school_accounts,
     can_review_student_report,
@@ -185,17 +185,18 @@ class ContextualPermissionPolicyTests(TestCase):
         )
 
     def test_student_can_access_only_own_student_space(self):
-        self.assertTrue(can_access_student(self.student_user, self.membership_a1))
-        self.assertFalse(can_access_student(self.student_user, self.membership_a2))
+        self.assertTrue(can_access_student_space(self.student_user, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.student_user, self.membership_a2))
 
     def test_guardian_can_access_only_explicitly_linked_student(self):
-        self.assertTrue(can_access_student(self.guardian, self.membership_a1))
-        self.assertFalse(can_access_student(self.guardian, self.membership_a2))
+        self.assertTrue(can_access_student_space(self.guardian, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.guardian, self.membership_a2))
+        self.assertFalse(can_access_student_space(self.guardian, self.membership_b1))
 
     def test_inactive_guardian_relationship_removes_access(self):
         self.guardian_relation.is_active = False
         self.guardian_relation.save(update_fields=["is_active"])
-        self.assertFalse(can_access_student(self.guardian, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.guardian, self.membership_a1))
 
     def test_subject_teacher_sees_only_students_in_active_teaching_group(self):
         visible = visible_student_memberships_for(self.subject_teacher, self.school_a)
@@ -206,7 +207,7 @@ class ContextualPermissionPolicyTests(TestCase):
         self.assertEqual(list(visible), [self.membership_a1])
 
     def test_teacher_cannot_access_other_school_student(self):
-        self.assertFalse(can_access_student(self.subject_teacher, self.membership_b1))
+        self.assertFalse(can_access_student_space(self.subject_teacher, self.membership_b1))
 
     def test_teacher_can_write_only_assigned_subject_for_assigned_student(self):
         self.assertTrue(
@@ -241,15 +242,15 @@ class ContextualPermissionPolicyTests(TestCase):
         reviewable = reviewable_student_memberships_for(self.homeroom_teacher, self.school_a)
         self.assertEqual(list(reviewable), [self.membership_a1])
 
-    def test_academic_admin_can_manage_structure_but_cannot_read_student_content_by_role_alone(self):
+    def test_academic_admin_can_manage_structure_but_not_student_space_by_role_alone(self):
         self.assertTrue(can_manage_academic_structure(self.academic_admin, self.school_a))
         self.assertFalse(can_manage_school_accounts(self.academic_admin, self.school_a))
-        self.assertFalse(can_access_student(self.academic_admin, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.academic_admin, self.membership_a1))
 
-    def test_system_admin_can_manage_accounts_but_cannot_read_student_content_by_role_alone(self):
+    def test_system_admin_can_manage_accounts_but_not_student_space_by_role_alone(self):
         self.assertTrue(can_manage_school_accounts(self.system_admin, self.school_a))
         self.assertFalse(can_manage_academic_structure(self.system_admin, self.school_a))
-        self.assertFalse(can_access_student(self.system_admin, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.system_admin, self.membership_a1))
 
     def test_roles_are_school_scoped(self):
         self.assertFalse(can_manage_academic_structure(self.academic_admin, self.school_b))
@@ -260,25 +261,39 @@ class ContextualPermissionPolicyTests(TestCase):
             username="technical.superuser",
             password="test-password-only",
         )
-        self.assertFalse(can_access_student(superuser, self.membership_a1))
+        self.assertFalse(can_access_student_space(superuser, self.membership_a1))
         self.assertFalse(can_manage_academic_structure(superuser, self.school_a))
         self.assertFalse(can_manage_school_accounts(superuser, self.school_a))
 
     def test_anonymous_user_is_denied(self):
         anonymous = AnonymousUser()
-        self.assertFalse(can_access_student(anonymous, self.membership_a1))
+        self.assertFalse(can_access_student_space(anonymous, self.membership_a1))
         self.assertFalse(can_manage_academic_structure(anonymous, self.school_a))
         self.assertFalse(can_manage_school_accounts(anonymous, self.school_a))
 
     def test_inactive_user_is_denied_even_when_relationship_exists(self):
         self.guardian.is_active = False
         self.guardian.save(update_fields=["is_active"])
-        self.assertFalse(can_access_student(self.guardian, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.guardian, self.membership_a1))
+
+    def test_inactive_teaching_assignment_removes_teacher_scope(self):
+        self.cs_assignment.is_active = False
+        self.cs_assignment.save(update_fields=["is_active"])
+        self.assertFalse(can_access_student_space(self.subject_teacher, self.membership_a1))
+        self.assertFalse(
+            can_write_subject_comment(self.subject_teacher, self.membership_a1, self.cs_a)
+        )
+
+    def test_inactive_homeroom_assignment_removes_review_scope(self):
+        self.homeroom_assignment.is_active = False
+        self.homeroom_assignment.save(update_fields=["is_active"])
+        self.assertFalse(can_access_student_space(self.homeroom_teacher, self.membership_a1))
+        self.assertFalse(can_review_student_report(self.homeroom_teacher, self.membership_a1))
 
     def test_inactive_teacher_role_removes_teaching_and_review_scope(self):
         self.subject_teacher_role.is_active = False
         self.subject_teacher_role.save(update_fields=["is_active"])
-        self.assertFalse(can_access_student(self.subject_teacher, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.subject_teacher, self.membership_a1))
         self.assertFalse(
             can_write_subject_comment(self.subject_teacher, self.membership_a1, self.cs_a)
         )
@@ -287,14 +302,29 @@ class ContextualPermissionPolicyTests(TestCase):
         self.homeroom_teacher_role.save(update_fields=["is_active"])
         self.assertFalse(can_review_student_report(self.homeroom_teacher, self.membership_a1))
 
+    def test_inactive_academic_year_removes_teacher_scopes_but_not_student_or_guardian_identity_scope(self):
+        self.year_a.is_active = False
+        self.year_a.save(update_fields=["is_active"])
+
+        self.assertFalse(can_access_student_space(self.subject_teacher, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.homeroom_teacher, self.membership_a1))
+        self.assertFalse(
+            can_write_subject_comment(self.subject_teacher, self.membership_a1, self.cs_a)
+        )
+        self.assertFalse(can_review_student_report(self.homeroom_teacher, self.membership_a1))
+
+        # 学生 / 家长与学校的身份关系并不因为学年切换而消失。
+        self.assertTrue(can_access_student_space(self.student_user, self.membership_a1))
+        self.assertTrue(can_access_student_space(self.guardian, self.membership_a1))
+
     def test_withdrawn_student_is_removed_from_all_active_content_scopes(self):
         self.membership_a1.status = StudentSchoolMembership.Status.WITHDRAWN
         self.membership_a1.save(update_fields=["status"])
 
-        self.assertFalse(can_access_student(self.student_user, self.membership_a1))
-        self.assertFalse(can_access_student(self.guardian, self.membership_a1))
-        self.assertFalse(can_access_student(self.subject_teacher, self.membership_a1))
-        self.assertFalse(can_access_student(self.homeroom_teacher, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.student_user, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.guardian, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.subject_teacher, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.homeroom_teacher, self.membership_a1))
         self.assertFalse(
             can_write_subject_comment(self.subject_teacher, self.membership_a1, self.cs_a)
         )
@@ -304,8 +334,8 @@ class ContextualPermissionPolicyTests(TestCase):
         self.school_a.status = School.Status.SUSPENDED
         self.school_a.save(update_fields=["status"])
 
-        self.assertFalse(can_access_student(self.student_user, self.membership_a1))
-        self.assertFalse(can_access_student(self.guardian, self.membership_a1))
-        self.assertFalse(can_access_student(self.subject_teacher, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.student_user, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.guardian, self.membership_a1))
+        self.assertFalse(can_access_student_space(self.subject_teacher, self.membership_a1))
         self.assertFalse(can_manage_academic_structure(self.academic_admin, self.school_a))
         self.assertFalse(can_manage_school_accounts(self.system_admin, self.school_a))
