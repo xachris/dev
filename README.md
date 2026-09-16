@@ -1,15 +1,56 @@
-# What is this?
+# School Digital Platform
 
-The github.dev web-based editor is a lightweight editing experience that runs entirely in your browser. You can navigate files and source code repositories from GitHub, and make and commit code changes.
+A self-hosted school digital platform designed for student-centred workflows, secure family access, structured learning reports, and future AI-assisted school operations.
 
-There are two ways to go directly to a VS Code environment in your browser and start coding:
+## Current product scope
 
-* Press the . key on any repository or pull request.
-* Swap `.com` with `.dev` in the URL. For example, this repo https://github.com/github/dev becomes http://github.dev/github/dev
+The first implementation is **Learning Report System V0.1**.
 
-Preview the gif below to get a quick demo of github.dev in action.
+Core workflow:
 
-![github dev](https://user-images.githubusercontent.com/856858/130119109-4769f2d7-9027-4bc4-a38c-10f297499e8f.gif)
+1. Subject teacher enters feedback.
+2. Teacher submits the report.
+3. Automated checks run.
+4. Homeroom teacher reviews.
+5. Report is approved.
+6. School publishes the report.
+7. Student and guardian views are generated according to permissions.
+8. External email is used only as a notification channel.
 
-# Why?
-It’s a quick way to edit and navigate code. It's especially useful if you want to edit multiple files at a time or take advantage of all the powerful code editing features of Visual Studio Code when making a quick change. For more information, see our [documentation](https://github.co/codespaces-editor-help).
+## Core product principles
+
+- **One Student, One Permanent ID, Multiple Roles, Different Views.**
+- **Report stays inside the school. Notification goes outside.**
+- School-controlled data and infrastructure are preferred over vendor lock-in.
+- Student, guardian, teacher, and administrator permissions are separated.
+- AI is optional and must never be required for the core workflow to function.
+- Production data must remain auditable, access-controlled, backed up, and recoverable.
+
+## Planned roles
+
+- Student
+- Guardian
+- Subject Teacher
+- Homeroom Teacher
+- Academic Admin
+- System Admin
+
+## Milestone 1
+
+Run the complete workflow with test data only:
+
+`Teacher -> Submit -> Homeroom Review -> Approve -> Publish -> Guardian View / Student View`
+
+No real student data, Outlook integration, or production deployment is required for Milestone 1.
+
+## Repository structure
+
+- `docs/` - architecture, product, permissions, security, and roadmap documentation
+- `backend/` - Django application code
+- `tests/` - automated and workflow tests
+- `deployment/` - server, reverse proxy, backup, and deployment configuration
+- `archive/` - material that existed before this project was initialized
+
+## Status
+
+Project initialized for prototype development.
