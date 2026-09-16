@@ -173,3 +173,31 @@ class TeacherThroughputTests(TestCase):
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         self.assertGreater(len(response.content), 1000)
+
+    def test_demo_reset_clears_the_whole_throughput_roster(self):
+        comment = SubjectComment.objects.get(
+            report__report_cycle=self.cycle,
+            report__student_membership__student_number="A018",
+            subject__code="CS",
+        )
+        response = self.client.post(
+            self.batch_url(),
+            {
+                "comment_id": str(comment.pk),
+                "student_feedback": "Temporary demo feedback",
+                "action": "submit",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        comment.refresh_from_db()
+        self.assertEqual(comment.status, SubjectComment.Status.SUBMITTED)
+
+        self.client.logout()
+        self.assertTrue(self.client.login(username="academic.admin", password="DemoOnly-2026!"))
+        reset = self.client.post(reverse("core:demo_reset"))
+        self.assertEqual(reset.status_code, 302)
+
+        comment.refresh_from_db()
+        self.assertEqual(comment.status, SubjectComment.Status.DRAFT)
+        self.assertEqual(comment.student_feedback, "")
