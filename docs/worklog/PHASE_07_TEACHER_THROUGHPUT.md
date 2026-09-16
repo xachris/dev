@@ -184,12 +184,40 @@ Audio
 
 ## 8. 是否允许进入线上 Pilot
 
-**允许，但必须完成最终文档 HEAD 的 CI 后再合并部署。**
+**已允许并已上线 Staging Pilot。**
 
-代码功能核验已经达到 PASS；上线后的关键任务是由产品负责人实际连续填写一组学生，记录：
+代码功能核验达到 PASS，线上容器也已验证 migration、静态文件、18 人 seed 和健康检查。下一步的关键任务是由产品负责人实际连续填写一组学生，记录：
 
 - 完成一名学生需要多少动作；
 - 是否出现不必要的鼠标移动；
 - Tab / 快捷键是否自然；
 - 是否需要“只看未完成 / 搜索学生 / 跳过当前学生”等功能；
 - 批量模板是否符合真实教师已有 Excel 工作方式。
+
+## 9. 线上部署核验与部署链风险
+
+Phase 7 已部署到现有 Railway Staging 服务 `school-platform-web`，没有创建第二个 Web 服务，也没有更换数据库或域名。
+
+本次真实部署使用：
+
+- GitHub 合并提交：`1893dbd21a02468579beb3905f905c20f363a242`；
+- Railway deployment：`0b0ed4fb-d530-4764-a75e-cd5b5970cf10`；
+- source：`xachris/dev`；
+- branch：`main`；
+- deployment status：`SUCCESS`；
+- migration：无新增 migration，启动正常；
+- seed：`roster=18`；
+- Gunicorn：监听 `0.0.0.0:8000`；
+- `/health/`：HTTP 200。
+
+部署过程中发现：Railway 普通 `redeploy` 最初只是重跑旧 snapshot `da0928cc...`，并不会自动拉取最新 `main`。进一步检查确认当前 Railway GitHub App 未安装到 `xachris/dev`，因此 auto-deploy 处于禁用状态。
+
+已将现有 Railway 服务 source 明确配置为 `xachris/dev / main` 并部署本次最新 commit，但**未来 GitHub main 合并后仍不能依赖自动触发**，除非仓库所有者在 GitHub 中安装并授权 Railway GitHub App。
+
+### 对业务的影响
+
+当前人工 / AI 驱动的手动部署仍可继续开发和 Pilot，不阻塞业务验证；但如果未来进入多人开发或高频 Staging 发布，缺少 auto-deploy 会增加“GitHub 已更新、线上仍是旧版本”的版本漂移风险。
+
+### 风险结论
+
+**当前 Pilot 可接受；进入持续交付阶段前应解决。**
