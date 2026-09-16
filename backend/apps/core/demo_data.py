@@ -33,10 +33,8 @@ def _user(username: str, display_name: str):
         username=username,
         defaults={"display_name": display_name},
     )
-    changed = False
     if user.display_name != display_name:
         user.display_name = display_name
-        changed = True
     user.set_password(_password())
     user.is_active = True
     user.save()
@@ -45,13 +43,24 @@ def _user(username: str, display_name: str):
 
 @transaction.atomic
 def ensure_demo_data():
+    """创建或修复一套可重复使用的纯虚拟 Pilot 数据。
+
+    该函数故意幂等：部署重启可以安全重复执行，不会制造第二个演示学生、
+    第二套角色或第二份报告。
+    """
     school, _ = School.objects.get_or_create(
         code=DEMO_SCHOOL_CODE,
         defaults={"name": "演示国际学校"},
     )
+    changed = False
+    if school.name != "演示国际学校":
+        school.name = "演示国际学校"
+        changed = True
     if school.status != School.Status.ACTIVE:
         school.status = School.Status.ACTIVE
-        school.save(update_fields=["status", "updated_at"])
+        changed = True
+    if changed:
+        school.save()
 
     year, _ = AcademicYear.objects.get_or_create(
         school=school,
@@ -119,7 +128,7 @@ def ensure_demo_data():
         role=RoleAssignment.Role.TEACHER,
         defaults={"is_active": True},
     )
-    RoleAssignment.objects.get_or_create(
+    academic_role, _ = RoleAssignment.objects.get_or_create(
         school=school,
         user=academic_admin,
         role=RoleAssignment.Role.ACADEMIC_ADMIN,
@@ -131,6 +140,10 @@ def ensure_demo_data():
         role=RoleAssignment.Role.SYSTEM_ADMIN,
         defaults={"is_active": True},
     )
+    for role in (cs_role, math_role, homeroom_role, academic_role):
+        if not role.is_active:
+            role.is_active = True
+            role.save(update_fields=["is_active", "updated_at"])
 
     TeachingAssignment.objects.get_or_create(
         teacher_role=cs_role,
@@ -151,12 +164,12 @@ def ensure_demo_data():
     )
 
     student, _ = Student.objects.get_or_create(
-        full_name="学生 A",
-        defaults={"user_account": student_user},
+        user_account=student_user,
+        defaults={"full_name": "学生 A"},
     )
-    if student.user_account_id != student_user.id:
-        student.user_account = student_user
-        student.save(update_fields=["user_account", "updated_at"])
+    if student.full_name != "学生 A":
+        student.full_name = "学生 A"
+        student.save(update_fields=["full_name", "updated_at"])
 
     membership, _ = StudentSchoolMembership.objects.get_or_create(
         school=school,
@@ -174,17 +187,23 @@ def ensure_demo_data():
         membership.save()
 
     for group in (homeroom, cs_group, math_group):
-        StudentClassMembership.objects.get_or_create(
+        relation, _ = StudentClassMembership.objects.get_or_create(
             student_membership=membership,
             class_group=group,
             defaults={"is_active": True},
         )
+        if not relation.is_active:
+            relation.is_active = True
+            relation.save(update_fields=["is_active", "updated_at"])
 
-    GuardianRelationship.objects.get_or_create(
+    guardian_relation, _ = GuardianRelationship.objects.get_or_create(
         student_membership=membership,
         guardian=guardian,
         defaults={"is_active": True},
     )
+    if not guardian_relation.is_active:
+        guardian_relation.is_active = True
+        guardian_relation.save(update_fields=["is_active", "updated_at"])
 
     cycle, _ = ReportCycle.objects.get_or_create(
         academic_year=year,
