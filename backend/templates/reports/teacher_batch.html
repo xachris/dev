@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}连续录入 · {{ assignment.subject.name }}{% endblock %}
+
+{% block content %}
+<section class="page-heading batch-heading">
+    <div>
+        <p class="eyebrow">Teacher throughput</p>
+        <h1>{{ assignment.class_group.name }} · {{ assignment.subject.name }}</h1>
+        <p class="muted">{{ cycle.name }} · 连续处理整个教学组，不需要在学生之间反复返回工作台。</p>
+    </div>
+    <div class="action-row">
+        <a class="button secondary" href="{% url 'core:teacher_batch_import' assignment.id cycle.id %}">Excel / CSV 批量导入</a>
+        <a class="button secondary" href="{% url 'core:dashboard' %}">返回工作台</a>
+    </div>
+</section>
+
+<section class="throughput-summary section-card compact-card">
+    <div>
+        <strong id="batch-progress">已提交 {{ counts.submitted }} / {{ counts.total }}</strong>
+        <span class="muted small">剩余 <span id="batch-remaining">{{ counts.remaining }}</span> · 已退回 <span id="batch-returned">{{ counts.returned }}</span></span>
+    </div>
+    <div class="keyboard-hints">
+        <span><kbd>Tab</kbd> 字段间移动</span>
+        <span><kbd>最后字段 + Tab</kbd> 自动保存并到下一位</span>
+        <span><kbd>Ctrl/⌘ + Enter</kbd> 提交并到下一位</span>
+    </div>
+</section>
+
+<div id="batch-message" class="message" hidden></div>
+
+<section class="batch-workspace">
+    <aside class="batch-roster section-card">
+        <div class="section-heading">
+            <div><p class="eyebrow">Roster</p><h2>学生</h2></div>
+            <span class="count">{{ counts.total }}</span>
+        </div>
+        <div class="batch-roster-list" id="batch-roster-list">
+            {% for item in items %}
+            <button type="button"
+                    class="batch-roster-item{% if item.comment.id|stringformat:'s' == focus_id %} active{% endif %}"
+                    data-target="{{ item.comment.id }}"
+                    data-status="{{ item.comment.status }}">
+                <span>
+                    <strong>{{ item.comment.report.student_membership.student.full_name }}</strong>
+                    <small>{{ item.comment.report.student_membership.student_number }}</small>
+                </span>
+                <span class="status status-{{ item.comment.status|lower }} roster-status">{{ item.comment.get_status_display }}</span>
+            </button>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <div class="batch-editor section-card">
+        {% for item in items %}
+        <article class="batch-student-panel"
+                 data-comment-id="{{ item.comment.id }}"
+                 data-editable="{% if item.editable %}true{% else %}false{% endif %}"
+                 data-status="{{ item.comment.status }}"
+                 {% if item.comment.id|stringformat:'s' != focus_id %}hidden{% endif %}>
+            <div class="batch-student-header">
+                <div>
+                    <p class="eyebrow">Student {{ forloop.counter }} / {{ counts.total }}</p>
+                    <h2>{{ item.comment.report.student_membership.student.full_name }}</h2>
+                    <p class="muted">{{ item.comment.report.student_membership.student_number }}</p>
+                </div>
+                <span class="status status-{{ item.comment.status|lower }} panel-status">{{ item.comment.get_status_display }}</span>
+            </div>
+
+            <form method="post" class="stack-form batch-comment-form">
+                {% csrf_token %}
+                <input type="hidden" name="comment_id" value="{{ item.comment.id }}">
+                <label>
+                    <span>学生可见反馈 <strong class="required">必填</strong></span>
+                    <textarea name="student_feedback" rows="7" class="batch-field first-field" {% if not item.editable %}readonly{% endif %}>{{ item.comment.student_feedback }}</textarea>
+                </label>
+                <label>
+                    <span>家长专属信息</span>
+                    <textarea name="guardian_message" rows="5" class="batch-field" {% if not item.editable %}readonly{% endif %}>{{ item.comment.guardian_message }}</textarea>
+                </label>
+                <label>
+                    <span>教职工内部备注</span>
+                    <textarea name="staff_note" rows="4" class="batch-field last-field" {% if not item.editable %}readonly{% endif %}>{{ item.comment.staff_note }}</textarea>
+                </label>
+
+                {% if item.editable %}
+                <div class="action-row batch-actions">
+                    <button class="button secondary save-button" type="submit" name="action" value="save">保存草稿</button>
+                    <button class="button primary submit-button" type="submit" name="action" value="submit">提交并下一位</button>
+                    <span class="muted small save-state" aria-live="polite"></span>
+                </div>
+                {% else %}
+                <div class="locked-note">该评价当前不可编辑。已提交的评价需由班主任退回后才能修改。</div>
+                {% endif %}
+            </form>
+        </article>
+        {% empty %}
+        <div class="empty-state"><h2>当前没有需要处理的学生。</h2></div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    const panels = Array.from(document.querySelectorAll('.batch-student-panel'));
+    const rosterButtons = Array.from(document.querySelectorAll('.batch-roster-item'));
+    const messageBox = document.getElementById('batch-message');
+    const progress = document.getElementById('batch-progress');
+    const remaining = document.getElementById('batch-remaining');
+    const returned = document.getElementById('batch-returned');
+
+    if (!panels.length) return;
+
+    function showMessage(text, isError = false) {
+        messageBox.textContent = text;
+        messageBox.className = `message ${isError ? 'error' : 'success'}`;
+        messageBox.hidden = false;
+        if (!isError) window.setTimeout(() => { messageBox.hidden = true; }, 1800);
+    }
+
+    function panelById(id) {
+        return panels.find(panel => panel.dataset.commentId === String(id));
+    }
+
+    function showPanel(id, focus = true) {
+        const target = panelById(id);
+        if (!target) return;
+        panels.forEach(panel => { panel.hidden = panel !== target; });
+        rosterButtons.forEach(button => button.classList.toggle('active', button.dataset.target === String(id)));
+        const url = new URL(window.location.href);
+        url.searchParams.set('focus', id);
+        window.history.replaceState({}, '', url);
+        if (focus) {
+            const field = target.querySelector('.first-field:not([readonly])');
+            if (field) field.focus();
+        }
+    }
+
+    function nextEditable(currentId, direction = 1) {
+        const currentIndex = panels.findIndex(panel => panel.dataset.commentId === String(currentId));
+        if (currentIndex < 0) return null;
+        for (let step = 1; step <= panels.length; step += 1) {
+            const index = (currentIndex + direction * step + panels.length) % panels.length;
+            const panel = panels[index];
+            if (panel.dataset.editable === 'true') return panel;
+        }
+        return null;
+    }
+
+    function updateRosterStatus(commentId, status, label) {
+        const button = rosterButtons.find(item => item.dataset.target === String(commentId));
+        if (!button) return;
+        button.dataset.status = status;
+        const statusNode = button.querySelector('.roster-status');
+        statusNode.textContent = label;
+        statusNode.className = `status status-${status.toLowerCase()} roster-status`;
+    }
+
+    async function persist(form, action, moveAfter = false) {
+        const panel = form.closest('.batch-student-panel');
+        if (panel.dataset.editable !== 'true') return false;
+        const saveState = form.querySelector('.save-state');
+        const formData = new FormData(form);
+        formData.set('action', action);
+        form.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        saveState.textContent = action === 'submit' ? '正在提交…' : '正在保存…';
+
+        try {
+            const response = await fetch(window.location.pathname, {
+                method: 'POST',
+                body: formData,
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                credentials: 'same-origin',
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+                throw new Error((data.errors || ['保存失败']).join('；'));
+            }
+
+            panel.dataset.status = data.status;
+            const panelStatus = panel.querySelector('.panel-status');
+            panelStatus.textContent = data.status_label;
+            panelStatus.className = `status status-${data.status.toLowerCase()} panel-status`;
+            updateRosterStatus(data.comment_id, data.status, data.status_label);
+            progress.textContent = `已提交 ${data.counts.submitted} / ${data.counts.total}`;
+            remaining.textContent = data.counts.remaining;
+            returned.textContent = data.counts.returned;
+            saveState.textContent = action === 'submit' ? '已提交' : '已保存';
+
+            if (data.status === 'SUBMITTED') {
+                panel.dataset.editable = 'false';
+                panel.querySelectorAll('textarea').forEach(field => { field.readOnly = true; });
+            }
+
+            if (moveAfter) {
+                const next = nextEditable(data.comment_id, 1);
+                if (next) showPanel(next.dataset.commentId);
+                else showMessage('当前教学组已没有待填写评价。');
+            }
+            return true;
+        } catch (error) {
+            saveState.textContent = '';
+            showMessage(error.message, true);
+            return false;
+        } finally {
+            form.querySelectorAll('button').forEach(button => { button.disabled = false; });
+        }
+    }
+
+    rosterButtons.forEach(button => {
+        button.addEventListener('click', () => showPanel(button.dataset.target));
+    });
+
+    document.querySelectorAll('.batch-comment-form').forEach(form => {
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            const action = event.submitter?.value || 'save';
+            persist(form, action, action === 'submit');
+        });
+
+        form.addEventListener('keydown', event => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                const submitButton = form.querySelector('.submit-button');
+                if (submitButton) form.requestSubmit(submitButton);
+            }
+        });
+
+        const lastField = form.querySelector('.last-field:not([readonly])');
+        if (lastField) {
+            lastField.addEventListener('keydown', async event => {
+                if (event.key === 'Tab' && !event.shiftKey) {
+                    event.preventDefault();
+                    await persist(form, 'save', true);
+                }
+            });
+        }
+
+        const firstField = form.querySelector('.first-field:not([readonly])');
+        if (firstField) {
+            firstField.addEventListener('keydown', event => {
+                if (event.key === 'Tab' && event.shiftKey) {
+                    const panel = form.closest('.batch-student-panel');
+                    const previous = nextEditable(panel.dataset.commentId, -1);
+                    if (previous) {
+                        event.preventDefault();
+                        showPanel(previous.dataset.commentId);
+                        const previousLast = previous.querySelector('.last-field:not([readonly])');
+                        if (previousLast) previousLast.focus();
+                    }
+                }
+            });
+        }
+    });
+
+    const initial = panels.find(panel => !panel.hidden) || panels[0];
+    showPanel(initial.dataset.commentId, false);
+})();
+</script>
+{% endblock %}
