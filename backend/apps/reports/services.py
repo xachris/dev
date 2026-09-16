@@ -25,39 +25,31 @@ from .policies import (
 )
 
 
-def expected_subjects_for_report(report: StudentReport):
-    """根据学生真实教学组织自动推导本周期应出现的学科。
-
-    这里故意不维护第二份“报告学科清单”。如果任课配置有问题，报告完整性会直接暴露问题，
-    而不是静默把某门课从报告中消失。
-    """
+def _subjects_for_student_when_report_created(report_cycle: ReportCycle, student_membership):
+    """只在报告创建时读取当前教学结构，形成正式报告的学科快照。"""
     student_group_ids = StudentClassMembership.objects.filter(
-        student_membership=report.student_membership,
+        student_membership=student_membership,
         is_active=True,
-        class_group__academic_year=report.report_cycle.academic_year,
+        class_group__academic_year=report_cycle.academic_year,
     ).values("class_group_id")
 
     return Subject.objects.filter(
-        school=report.school,
+        school=report_cycle.school,
         teaching_assignments__is_active=True,
         teaching_assignments__class_group_id__in=student_group_ids,
-        teaching_assignments__class_group__academic_year=report.report_cycle.academic_year,
+        teaching_assignments__class_group__academic_year=report_cycle.academic_year,
     ).distinct()
 
 
-def report_is_complete(report: StudentReport) -> bool:
-    """所有真实应报告学科都已有已提交评价时，报告才算完整。"""
-    expected_ids = set(expected_subjects_for_report(report).values_list("id", flat=True))
-    if not expected_ids:
-        return False
+def expected_subjects_for_report(report: StudentReport):
+    """返回创建报告时已经冻结的学科槽，而不是重新读取今天的课表关系。"""
+    return Subject.objects.filter(report_comments__report=report).distinct()
 
-    submitted_ids = set(
-        report.subject_comments.filter(
-            subject_id__in=expected_ids,
-            status=SubjectComment.Status.SUBMITTED,
-        ).values_list("subject_id", flat=True)
-    )
-    return expected_ids.issubset(submitted_ids)
+
+def report_is_complete(report: StudentReport) -> bool:
+    """报告中的每一个学科槽都已提交时，报告才算完整。"""
+    comments = report.subject_comments.all()
+    return comments.exists() and not comments.exclude(status=SubjectComment.Status.SUBMITTED).exists()
 
 
 def create_report_cycle(*, actor, academic_year, name: str) -> ReportCycle:
@@ -73,10 +65,10 @@ def create_report_cycle(*, actor, academic_year, name: str) -> ReportCycle:
 
 
 def create_student_report(*, actor, report_cycle: ReportCycle, student_membership) -> StudentReport:
-    """创建学生报告容器，但不复制任何学科内容。
+    """创建学生报告，并自动生成当时真实应填写的学科工作槽。
 
-    如果学生没有真实班主任或班级，流程从一开始就不可审核，因此直接拒绝，
-    不生成一条以后需要人工排查的“僵尸报告”。
+    学科槽是正式报告构成和教师待办，不是管理员维护的第二份学科名单。
+    报告创建后，普通任课调整不会悄悄改变这份正式报告的学科构成。
     """
     if not can_manage_report_cycles(actor, report_cycle.school):
         raise ValidationError("当前用户无权创建该学校的学生报告。")
@@ -105,10 +97,22 @@ def create_student_report(*, actor, report_cycle: ReportCycle, student_membershi
     if not has_reviewer:
         raise ValidationError("学生所在班级没有有效班主任，无法进入报告审核流程。")
 
-    return StudentReport.objects.create(
-        report_cycle=report_cycle,
-        student_membership=student_membership,
-    )
+    subjects = list(_subjects_for_student_when_report_created(report_cycle, student_membership))
+    if not subjects:
+        raise ValidationError("学生在该学年没有有效任教学科，不能生成空报告。")
+
+    with transaction.atomic():
+        report = StudentReport.objects.create(
+            report_cycle=report_cycle,
+            student_membership=student_membership,
+        )
+        for subject in subjects:
+            SubjectComment.objects.create(
+                report=report,
+                subject=subject,
+                created_by=None,
+            )
+        return report
 
 
 def save_subject_comment(
@@ -120,15 +124,22 @@ def save_subject_comment(
     guardian_message: str = "",
     staff_note: str = "",
 ) -> SubjectComment:
-    """创建或更新教师可编辑的学科评价草稿。
+    """更新当前报告已经存在的学科工作槽。
 
     SUBMITTED 状态被锁定；班主任退回后才重新允许编辑。
+    报告创建后不能因为后来新增任课关系就偷偷多出一门正式报告学科。
     """
     if not can_edit_report_subject(actor, report, subject):
         raise ValidationError("当前用户无权编辑该学生的这一学科评价。")
 
     with transaction.atomic():
-        locked_report = StudentReport.objects.select_for_update().get(pk=report.pk)
+        locked_report = StudentReport.objects.select_for_update().select_related(
+            "report_cycle",
+            "report_cycle__academic_year",
+            "student_membership",
+        ).get(pk=report.pk)
+        if not can_edit_report_subject(actor, locked_report, subject):
+            raise ValidationError("当前用户的任课权限已经变化，请刷新后重试。")
         if locked_report.status in {StudentReport.Status.APPROVED, StudentReport.Status.PUBLISHED}:
             raise ValidationError("当前报告已经锁定，不能继续修改学科评价。")
 
@@ -136,18 +147,13 @@ def save_subject_comment(
             report=locked_report,
             subject=subject,
         ).first()
-
         if comment is None:
-            if locked_report.status not in {StudentReport.Status.DRAFT, StudentReport.Status.RETURNED}:
-                raise ValidationError("当前报告状态不允许新增学科评价。")
-            comment = SubjectComment(
-                report=locked_report,
-                subject=subject,
-                created_by=actor,
-            )
-        elif comment.status == SubjectComment.Status.SUBMITTED:
+            raise ValidationError("这一学科不属于该报告创建时冻结的学科范围。")
+        if comment.status == SubjectComment.Status.SUBMITTED:
             raise ValidationError("已提交评价不能直接修改；需要班主任退回后才能编辑。")
 
+        if comment.created_by_id is None:
+            comment.created_by = actor
         comment.student_feedback = (student_feedback or "").strip()
         comment.guardian_message = (guardian_message or "").strip()
         comment.staff_note = (staff_note or "").strip()
@@ -156,7 +162,7 @@ def save_subject_comment(
 
 
 def _refresh_report_after_submission(report: StudentReport) -> None:
-    """完整性由数据自动推导，不让班主任多点一次“开始审核”。"""
+    """完整性由学科槽状态自动推导，不让班主任多点一次“开始审核”。"""
     if report.status in {StudentReport.Status.APPROVED, StudentReport.Status.PUBLISHED}:
         return
 
@@ -170,7 +176,7 @@ def _refresh_report_after_submission(report: StudentReport) -> None:
 
 
 def submit_subject_comment(*, actor, comment: SubjectComment) -> SubjectComment:
-    """提交或重新提交一条评价；最后一门提交后报告自动进入班主任审核。
+    """提交或重新提交一条评价；最后一个学科槽提交后报告自动进入班主任审核。
 
     先锁整份 StudentReport，再锁具体 SubjectComment，使同一学生的并发提交按报告串行判断完整性。
     """
@@ -189,10 +195,14 @@ def submit_subject_comment(*, actor, comment: SubjectComment) -> SubjectComment:
         ).get(pk=comment.report_id)
         locked = SubjectComment.objects.select_for_update().select_related("subject").get(pk=comment.pk)
 
+        if not can_edit_report_subject(actor, locked_report, locked.subject):
+            raise ValidationError("当前用户的任课权限已经变化，请刷新后重试。")
         if locked_report.status in {StudentReport.Status.APPROVED, StudentReport.Status.PUBLISHED}:
             raise ValidationError("报告已经锁定，不能继续提交评价。")
         if locked.status not in {SubjectComment.Status.DRAFT, SubjectComment.Status.RETURNED}:
             raise ValidationError("评价状态已经变化，请刷新后重试。")
+        if not locked.student_feedback.strip():
+            raise ValidationError("提交前必须填写学生可见学习反馈。")
 
         locked.status = SubjectComment.Status.SUBMITTED
         locked.submitted_by = actor
@@ -220,9 +230,15 @@ def return_subject_comment(
         raise ValidationError("只有已提交的学科评价可以退回。")
 
     with transaction.atomic():
-        report = StudentReport.objects.select_for_update().get(pk=comment.report_id)
+        report = StudentReport.objects.select_for_update().select_related(
+            "report_cycle",
+            "report_cycle__academic_year",
+            "student_membership",
+        ).get(pk=comment.report_id)
         locked = SubjectComment.objects.select_for_update().get(pk=comment.pk)
 
+        if not can_review_report(actor, report):
+            raise ValidationError("当前班主任权限已经变化，请刷新后重试。")
         if report.status != StudentReport.Status.IN_REVIEW or locked.status != SubjectComment.Status.SUBMITTED:
             raise ValidationError("报告状态已经变化，请刷新后重试。")
 
@@ -252,7 +268,13 @@ def approve_report(*, actor, report: StudentReport) -> StudentReport:
         raise ValidationError("报告仍缺少应提交的学科评价，不能批准。")
 
     with transaction.atomic():
-        locked = StudentReport.objects.select_for_update().get(pk=report.pk)
+        locked = StudentReport.objects.select_for_update().select_related(
+            "report_cycle",
+            "report_cycle__academic_year",
+            "student_membership",
+        ).get(pk=report.pk)
+        if not can_review_report(actor, locked):
+            raise ValidationError("当前班主任权限已经变化，请刷新后重试。")
         if locked.status != StudentReport.Status.IN_REVIEW:
             raise ValidationError("报告状态已经变化，请刷新后重试。")
         if not report_is_complete(locked):
@@ -279,7 +301,10 @@ def publish_report(*, actor, report: StudentReport) -> StudentReport:
         locked = StudentReport.objects.select_for_update().select_related(
             "report_cycle",
             "report_cycle__academic_year",
+            "student_membership",
         ).get(pk=report.pk)
+        if not can_publish_report(actor, locked):
+            raise ValidationError("当前发布权限已经变化，请刷新后重试。")
         if locked.status != StudentReport.Status.APPROVED:
             raise ValidationError("报告状态已经变化，请刷新后重试。")
 
