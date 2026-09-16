@@ -1,56 +1,65 @@
-# School Digital Platform
+# 学校数字化平台
 
-A self-hosted school digital platform designed for student-centred workflows, secure family access, structured learning reports, and future AI-assisted school operations.
+一个以中国学校为核心使用场景、可由学校自主部署和控制的数字化平台。项目优先解决学生身份、家校访问、学习报告、权限、审核、发布、通知和审计等基础问题，并为后续 AI 辅助学校运营预留接口。
 
-## Current product scope
+> 当前第一阶段产品：**学习报告系统 V0.1**
 
-The first implementation is **Learning Report System V0.1**.
+## 核心业务流程
 
-Core workflow:
+1. 学科教师填写学生学习反馈。
+2. 教师提交本学科评价。
+3. 系统执行自动校验。
+4. 班主任查看学生整体报告。
+5. 班主任审核、退回或批准。
+6. 学校统一发布报告。
+7. 学生与家长根据不同权限查看各自可见内容。
+8. 外部邮箱只用于“报告已发布”等通知，不承载正式学习报告正文。
 
-1. Subject teacher enters feedback.
-2. Teacher submits the report.
-3. Automated checks run.
-4. Homeroom teacher reviews.
-5. Report is approved.
-6. School publishes the report.
-7. Student and guardian views are generated according to permissions.
-8. External email is used only as a notification channel.
+## 核心产品原则
 
-## Core product principles
+- **一个学生，一个永久学号，多种身份，不同视图。**
+- **报告留在学校系统内，外部只发送通知。**
+- 学生学号是稳定身份主键，邮箱、登录方式和供应商可以变化。
+- 学生、家长、教师和管理员权限必须分离。
+- 家长与学生可以访问同一个学生空间，但看到的内容不同。
+- AI 只作为辅助能力，核心业务流程不能依赖 AI 才能运行。
+- 收件人、学生关系和权限必须来自结构化学校数据，不能由 AI 猜测。
+- 优先采用学校可控、可迁移、低供应商锁定的技术架构。
+- 正式数据必须可审计、可备份、可恢复、可追踪。
 
-- **One Student, One Permanent ID, Multiple Roles, Different Views.**
-- **Report stays inside the school. Notification goes outside.**
-- School-controlled data and infrastructure are preferred over vendor lock-in.
-- Student, guardian, teacher, and administrator permissions are separated.
-- AI is optional and must never be required for the core workflow to function.
-- Production data must remain auditable, access-controlled, backed up, and recoverable.
+## 默认使用环境
 
-## Planned roles
+- 核心用户：中国境内学校
+- 默认产品语言：简体中文（`zh-CN`）
+- 默认时区：`Asia/Shanghai`
+- 用户界面、通知、业务术语和操作说明：中文优先
+- 代码、数据库字段、API、枚举值：英文优先，便于开发维护
 
-- Student
-- Guardian
-- Subject Teacher
-- Homeroom Teacher
-- Academic Admin
-- System Admin
+## 初始角色
 
-## Milestone 1
+- 学生（Student）
+- 家长 / 监护人（Guardian）
+- 学科教师（Subject Teacher）
+- 班主任（Homeroom Teacher）
+- 学术管理员（Academic Admin）
+- 系统管理员（System Admin）
 
-Run the complete workflow with test data only:
+## Milestone 1：跑通最小闭环
 
-`Teacher -> Submit -> Homeroom Review -> Approve -> Publish -> Guardian View / Student View`
+仅使用虚拟测试数据完成：
 
-No real student data, Outlook integration, or production deployment is required for Milestone 1.
+`教师填写 -> 提交 -> 班主任审核 -> 批准 -> 发布 -> 家长查看 / 学生查看`
 
-## Repository structure
+Milestone 1 暂不接入真实学生数据、正式 Outlook 邮件、本地或外部 AI，也不部署正式生产环境。
 
-- `docs/` - architecture, product, permissions, security, and roadmap documentation
-- `backend/` - Django application code
-- `tests/` - automated and workflow tests
-- `deployment/` - server, reverse proxy, backup, and deployment configuration
-- `archive/` - material that existed before this project was initialized
+## 仓库结构
 
-## Status
+- `docs/`：项目、架构、数据模型、权限、安全和路线图文档
+- `backend/`：Django 后端应用
+- `tests/`：自动化测试和完整流程测试
+- `deployment/`：服务器、反向代理、备份和部署配置
+- `archive/`：本项目初始化前的旧仓库内容
 
-Project initialized for prototype development.
+## 当前状态
+
+项目已完成基础规范初始化，下一步进入 Django 工程和核心数据模型开发。
