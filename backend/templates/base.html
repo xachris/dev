@@ -1,14 +1,35 @@
+{% load static %}
 <!doctype html>
 <html lang="zh-CN">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}学校数字化平台{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body>
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+<header class="topbar">
+    <a class="brand" href="{% url 'core:home' %}">School Platform <span>Pilot</span></a>
+    {% if user.is_authenticated %}
+    <nav class="topnav">
+        <a href="{% url 'core:dashboard' %}">工作台</a>
+        <span class="user-chip">{{ user.display_name|default:user.username }}</span>
+        <form action="{% url 'core:logout' %}" method="post" class="inline-form">
+            {% csrf_token %}
+            <button class="link-button" type="submit">退出</button>
+        </form>
+    </nav>
+    {% endif %}
+</header>
+<main class="container">
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
 </body>
 </html>
