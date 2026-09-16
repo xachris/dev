@@ -14,6 +14,7 @@ from apps.reports.policies import (
     can_review_report,
     has_report_subject_scope,
     report_content_for,
+    subject_comment_content_for,
 )
 from apps.reports.services import (
     approve_report,
@@ -268,7 +269,20 @@ def homeroom_report(request, report_id):
             messages.error(request, "；".join(exc.messages))
             report.refresh_from_db()
 
-    return render(request, "reports/homeroom_report.html", {"report": report})
+    review_items = []
+    for comment in report.subject_comments.select_related("subject").order_by("subject__code"):
+        review_items.append(
+            {
+                "comment": comment,
+                "content": subject_comment_content_for(request.user, comment),
+            }
+        )
+
+    return render(
+        request,
+        "reports/homeroom_report.html",
+        {"report": report, "review_items": review_items},
+    )
 
 
 @login_required
