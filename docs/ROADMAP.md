@@ -1,95 +1,105 @@
-# Roadmap
+# 开发路线图
 
-## V0.1 Goal
+## V0.1 总目标
 
-Prove the core school learning-report workflow with synthetic data only.
+只使用虚拟测试数据，证明学校学习报告的核心业务闭环可以完整运行。
 
-## Milestone 1 - Core workflow
+## Milestone 1：核心工作流
 
-- Project skeleton
-- Synthetic users and students
-- Student permanent ID
-- Student / guardian / teacher / homeroom / admin roles
-- Teacher creates subject feedback
-- Draft and submit states
-- Homeroom review
-- Approve / return for revision
-- Publish
-- Guardian view
-- Student view with restricted content
+- 初始化项目骨架
+- 创建虚拟用户和虚拟学生
+- 建立永久学号
+- 建立学生 / 家长 / 学科教师 / 班主任 / 管理员角色
+- 学科教师创建学生评价
+- 草稿与提交状态
+- 班主任审核
+- 批准 / 退回修改
+- 发布报告
+- 家长视图
+- 学生受限视图
 
-Acceptance criterion:
+验收标准：
 
-`Teacher -> Submit -> Homeroom Review -> Approve -> Publish -> Guardian View / Student View`
+`教师填写 -> 提交 -> 班主任审核 -> 批准 -> 发布 -> 家长查看 / 学生查看`
 
-must work end-to-end with test data.
+必须使用测试数据端到端跑通。
 
-## Milestone 2 - Audit and permission hardening
+## Milestone 2：权限与审计加固
 
-- Server-side role and relationship checks
-- Audit events
-- Login tracking
-- Report version history
-- Privileged-action logging
-- Permission tests
+- 服务器端角色校验
+- 学生关系 / 任课关系校验
+- 审计事件
+- 登录记录
+- 报告版本历史
+- 高权限操作日志
+- 权限自动化测试
 
-## Milestone 3 - Notification service
+## Milestone 3：通知服务
 
-- Notification outbox
-- Console/test email adapter
-- Outlook/SMTP adapter
-- Retry handling
-- Delivery state
-- Duplicate-send prevention
+- Notification Outbox
+- 控制台 / 测试邮件适配器
+- Outlook / SMTP 适配器
+- 失败重试
+- 发送状态
+- 防重复发送
+- 中文通知模板
 
-## Milestone 4 - Staging deployment
+## Milestone 4：预发布服务器
 
-- Linux server
+- Linux Server
 - PostgreSQL
 - Nginx
 - HTTPS
-- Environment configuration
-- Backup automation
-- Restore procedure
-- Basic monitoring
+- 环境变量管理
+- 自动备份
+- 恢复流程
+- 基础监控
+- 默认 `zh-CN` 和 `Asia/Shanghai`
 
-## Milestone 5 - AI assistance
+## Milestone 5：AI 辅助
 
-- AI provider interface
-- `none` provider
-- local model provider
-- optional external provider
-- teacher comment polishing
-- report consistency checks
-- strict rule: AI must not infer recipients or invent educational facts
+- AI Provider 统一接口
+- `none` Provider
+- 本地模型 Provider
+- 可选外部 Provider
+- 教师评价语言润色
+- 报告一致性检查
+- 中文教育表达优化
+- 强制规则：AI 不得猜测收件人、家长关系或编造教育事实
 
-## Milestone 6 - Security baseline
+## Milestone 6：生产安全准备
 
-- Security review
-- Least-privilege review
-- Data-retention policy hooks
-- Backup encryption
-- Admin access controls
-- Incident-response documentation
-- Preparation for formal compliance assessment before real-student production use
+- 安全评审
+- 最小权限复核
+- 数据留存策略接口
+- 备份加密
+- 管理员访问控制
+- 事件响应文档
+- 未成年人和个人信息保护检查
+- 正式等保 / 合规评估准备
 
-## Milestone 7 - Production pilot
+## Milestone 7：生产试点
 
-- Limited real-world pilot after school approval
-- Production operating procedures
-- User training
-- Support model
-- Rollback plan
-- Review before broader deployment
+学校正式批准后进行有限范围试点：
 
-## Explicitly out of scope for V0.1
+- 小规模真实用户
+- 正式运维流程
+- 用户培训
+- 支持机制
+- 回滚方案
+- 试点评估
+- 通过评估后再扩大范围
 
-- Timetabling
-- Finance
-- Admissions
-- Library management
-- Dormitory management
-- Full LMS replacement
-- Full SIS replacement
-- Real student data
-- Production AI
+## V0.1 明确不做
+
+- 排课
+- 财务
+- 招生
+- 图书馆
+- 宿舍
+- 完整 LMS 替代
+- 完整 SIS 替代
+- 真实学生数据
+- 正式生产 AI
+
+原则：先把一个高频学校工作流真正做对，再扩展平台能力。
