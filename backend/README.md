@@ -1,14 +1,22 @@
-# Backend
+# 后端工程
 
-Django application code will live here.
+Django 应用代码放在这里。
 
-Planned application modules:
+计划模块：
 
-- `accounts`
-- `students`
-- `academics`
-- `reports`
-- `notifications`
-- `audit`
+- `accounts`：账号、登录、角色与权限
+- `students`：学生身份、学号、家长关系与在校状态
+- `academics`：学年、班级、学科、任课关系、班主任关系
+- `reports`：学习评价、审核、批准、发布与不同角色视图
+- `notifications`：通知 Outbox、邮件适配器、发送状态与重试
+- `audit`：安全与业务审计日志
 
-Milestone 1 will begin by creating the Django project and implementing synthetic-data authentication, student identity, report workflow, and role-based views.
+## 开发约定
+
+- 用户界面默认使用简体中文。
+- Django 默认语言设置为 `zh-hans`。
+- 默认时区使用 `Asia/Shanghai`。
+- Python 类名、模块名、数据库字段、API 和枚举继续使用英文。
+- 所有开发测试数据必须为虚构数据，不得使用真实学生资料。
+
+Milestone 1 从创建 Django 项目开始，优先实现：登录、学生永久学号、角色权限、学习报告工作流和学生/家长差异化视图。
