@@ -23,9 +23,20 @@
 
 完整设计原则见：[`docs/PRODUCT_PHILOSOPHY.md`](docs/PRODUCT_PHILOSOPHY.md)。后续新增功能、数据字段、工作流和 AI 能力时，应优先以该文档作为产品和架构判断依据。
 
+## 接手与架构变更规则
+
+后续 AI 模型、开发者或供应商接手前，应先阅读 [`AGENTS.md`](AGENTS.md) 和 [`docs/decisions/README.md`](docs/decisions/README.md)。
+
+已经接受的架构决策可以被未来新决策替代，但**不得在没有记录原因、现实变化、业务收益、迁移成本和验证方案的情况下被静默推翻**。
+
+当前前端默认路线为 **Django Templates + CSS + 少量 JavaScript**。是否引入 React / Next.js 由真实交互复杂度和 Pilot 证据决定，不以框架流行度决定。详细原因、重新评估条件和迁移规则见 [`ADR-001：前端架构策略`](docs/decisions/ADR-001-frontend-strategy.md)。
+
 ## 核心设计文档
 
+- [`AGENTS.md`](AGENTS.md)：后续 AI / 开发者接手顺序、架构变更纪律、业务与核验约束
 - [`docs/PRODUCT_PHILOSOPHY.md`](docs/PRODUCT_PHILOSOPHY.md)：产品设计哲学与新增功能检查清单
+- [`docs/decisions/README.md`](docs/decisions/README.md)：Architecture Decision Records 索引与变更规则
+- [`docs/decisions/ADR-001-frontend-strategy.md`](docs/decisions/ADR-001-frontend-strategy.md)：当前前端路线、暂不全面 React 化的原因及未来触发条件
 - [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md)：主开发实施计划、阶段顺序与验收标准
 - [`docs/VERIFICATION_STANDARD.md`](docs/VERIFICATION_STANDARD.md)：功能核验 + 业务意义核验双重标准
 - [`docs/worklog/README.md`](docs/worklog/README.md)：分阶段开发日志索引
@@ -69,7 +80,7 @@
 
 ## 仓库结构
 
-- `docs/`：产品哲学、开发计划、架构、数据模型、权限、安全、开发日志和路线图
+- `docs/`：产品哲学、开发计划、架构决策、架构、数据模型、权限、安全、开发日志和路线图
 - `backend/`：Django 后端应用与 Pilot UI
 - `tests/`：自动化测试和完整流程测试
 - `deployment/`：服务器、反向代理、备份和部署配置
