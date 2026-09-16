@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}学校数字化平台{% endblock %}
+
+{% block content %}
+<section class="status-card">
+    <p class="eyebrow">Modern School Platform</p>
+    <h1>学校数字化平台</h1>
+    <p>工程底座已启动。当前阶段只建立长期可维护的基础能力，不包含真实学生数据。</p>
+    <p><a href="{% url 'core:health' %}">查看健康检查</a></p>
+</section>
+{% endblock %}
