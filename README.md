@@ -8,7 +8,8 @@
 
 ## 核心产品原则
 
-- **一个学生，一个永久学号，多种身份，不同视图。**
+- **一个学生，一个稳定平台身份；每所学校使用自己的稳定学号；多种身份，不同视图。**
+- **一个真实人尽量只维护一个登录账号，多种业务身份通过关系表达。**
 - **报告留在学校系统内，外部只发送通知。**
 - **不产生无用途的“死数据”。**
 - **一份数据，只产生一次，多处复用。**
@@ -26,11 +27,13 @@
 
 - [`docs/PRODUCT_PHILOSOPHY.md`](docs/PRODUCT_PHILOSOPHY.md)：产品设计哲学与新增功能检查清单
 - [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md)：主开发实施计划、阶段顺序与验收标准
+- [`docs/VERIFICATION_STANDARD.md`](docs/VERIFICATION_STANDARD.md)：功能核验 + 业务意义核验双重标准
+- [`docs/worklog/README.md`](docs/worklog/README.md)：分阶段开发日志索引
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)：平台级版本路线图
 - [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md)：项目定位与范围
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)：总体架构
-- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)：核心数据模型
-- [`docs/PERMISSION_MODEL.md`](docs/PERMISSION_MODEL.md)：角色与权限模型
+- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)：当前实际数据模型与后续计划
+- [`docs/PERMISSION_MODEL.md`](docs/PERMISSION_MODEL.md)：身份、关系与权限模型
 - [`docs/SECURITY_BASELINE.md`](docs/SECURITY_BASELINE.md)：安全基线
 - [`docs/LOCALIZATION.md`](docs/LOCALIZATION.md)：中文产品与代码语言规范
 
@@ -52,7 +55,7 @@
 这个闭环将用于验证：
 
 - School / Tenant
-- Student ID
+- Student Identity / 学校学号
 - 学生 / 家长 / 教师关系
 - 任课关系
 - RBAC 与内容可见级别
@@ -67,7 +70,7 @@
 
 ## 仓库结构
 
-- `docs/`：产品哲学、开发计划、架构、数据模型、权限、安全和路线图
+- `docs/`：产品哲学、开发计划、架构、数据模型、权限、安全、开发日志和路线图
 - `backend/`：Django 后端应用
 - `tests/`：自动化测试和完整流程测试
 - `deployment/`：服务器、反向代理、备份和部署配置
@@ -75,8 +78,16 @@
 
 ## 当前开发阶段
 
-当前正式进入：
+已完成并通过机器验收：
 
-> **Phase 1：工程初始化**
+- Phase 1：工程初始化
+- Phase 2：School / Tenant 多学校底座
+- Phase 3：统一身份与关系模型
 
-后续开发默认严格按照 [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) 的顺序推进。除非发现基础架构存在重大问题，不因临时需求跳过底层阶段或提前堆叠新业务模块。
+下一阶段：
+
+> **Phase 4：最小学术结构**
+
+Phase 3 的业务意义核验结论为 `PASS WITH RISK`：统一身份设计业务价值成立，但平台级 Student 的跨学校身份能力和当前尚未完成的请求级权限属于明确风险。因此在 Phase 5 权限体系完成前，继续只使用虚拟数据，不接入真实学生生产数据。
+
+后续开发默认严格按照 [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) 的顺序推进，并按照 [`docs/VERIFICATION_STANDARD.md`](docs/VERIFICATION_STANDARD.md) 进行双重核验。
