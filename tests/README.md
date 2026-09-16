@@ -1,5 +1,17 @@
-# Tests
+# 测试
 
-Automated tests for permissions, report workflow, publication state transitions, notification idempotency, and audit behaviour will live here.
+本目录用于保存自动化测试和完整业务流程测试。
 
-Synthetic fixtures only until a production data policy is approved.
+重点覆盖：
+
+- 角色权限
+- 学生 / 家长关系校验
+- 任课关系校验
+- 报告状态流转
+- 审核与发布
+- 学生视图与家长视图差异
+- 通知幂等性和防重复发送
+- 审计日志
+- 中文界面和关键中文提示
+
+在学校正式批准生产数据策略之前，测试夹具只允许使用虚构数据。
