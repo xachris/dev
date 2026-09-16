@@ -9,6 +9,11 @@ from apps.schools.models import AcademicYear
 from apps.students.models import StudentSchoolMembership
 
 
+class ReportCycleQuerySet(models.QuerySet):
+    def for_school(self, school):
+        return self.filter(academic_year__school=school)
+
+
 class ReportCycle(models.Model):
     """一个学年中的报告批次。
 
@@ -26,6 +31,8 @@ class ReportCycle(models.Model):
     name = models.CharField("报告周期名称", max_length=100)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    objects = ReportCycleQuerySet.as_manager()
 
     class Meta:
         verbose_name = "报告周期"
@@ -49,6 +56,11 @@ class ReportCycle(models.Model):
 
     def __str__(self) -> str:
         return f"{self.academic_year.school.code} / {self.academic_year.name} / {self.name}"
+
+
+class StudentReportQuerySet(models.QuerySet):
+    def for_school(self, school):
+        return self.filter(report_cycle__academic_year__school=school)
 
 
 class StudentReport(models.Model):
@@ -95,6 +107,8 @@ class StudentReport(models.Model):
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
+    objects = StudentReportQuerySet.as_manager()
+
     class Meta:
         verbose_name = "学生报告"
         verbose_name_plural = "学生报告"
@@ -134,10 +148,16 @@ class StudentReport(models.Model):
         return f"{self.report_cycle} / {self.student_membership.student_number}"
 
 
-class SubjectComment(models.Model):
-    """一个报告中某一学科的唯一评价事实。
+class SubjectCommentQuerySet(models.QuerySet):
+    def for_school(self, school):
+        return self.filter(report__report_cycle__academic_year__school=school)
 
-    三类文本按消费者分离，但仍然属于同一个学科评价对象，避免同一事实散落到三个模块。
+
+class SubjectComment(models.Model):
+    """一个报告中某一学科的唯一工作槽与评价事实。
+
+    StudentReport 创建时由系统根据当时的真实教学结构自动生成学科槽，冻结本次正式报告的
+    学科构成。`created_by` 在第一位教师真正开始填写时才写入，因此系统生成空槽不冒充人工作者。
     """
 
     class Status(models.TextChoices):
@@ -162,7 +182,9 @@ class SubjectComment(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="created_subject_comments",
-        verbose_name="创建人",
+        null=True,
+        blank=True,
+        verbose_name="首位填写人",
     )
     student_feedback = models.TextField("学生可见反馈", blank=True)
     guardian_message = models.TextField("家长专属信息", blank=True)
@@ -185,6 +207,8 @@ class SubjectComment(models.Model):
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
 
+    objects = SubjectCommentQuerySet.as_manager()
+
     class Meta:
         verbose_name = "学科评价"
         verbose_name_plural = "学科评价"
@@ -203,6 +227,8 @@ class SubjectComment(models.Model):
                 errors["subject"] = "学科与学生报告必须属于同一所学校。"
 
         if self.status in {self.Status.SUBMITTED, self.Status.RETURNED}:
+            if not self.created_by_id:
+                errors["created_by"] = "已进入人工填写流程的评价必须记录首位填写人。"
             if not self.submitted_by_id or not self.submitted_at:
                 errors["status"] = "已提交或已退回的评价必须保留最近提交人和提交时间。"
         elif self.submitted_by_id or self.submitted_at:
@@ -217,6 +243,11 @@ class SubjectComment(models.Model):
 
     def __str__(self) -> str:
         return f"{self.report} / {self.subject.code}"
+
+
+class ReportActionQuerySet(models.QuerySet):
+    def for_school(self, school):
+        return self.filter(report__report_cycle__academic_year__school=school)
 
 
 class ReportAction(models.Model):
@@ -254,6 +285,8 @@ class ReportAction(models.Model):
     )
     note = models.TextField("说明", blank=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
+
+    objects = ReportActionQuerySet.as_manager()
 
     class Meta:
         verbose_name = "报告工作流动作"
