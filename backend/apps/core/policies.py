@@ -6,6 +6,7 @@
 原则：
 - 默认拒绝；
 - 学校、账号和上游关系状态共同决定权限；
+- 学生空间访问不等于查看所有学生内容；
 - 学生内容访问与技术账号管理分离；
 - 后续 View / API / Service 应调用这里，而不是各自复制权限判断。
 """
@@ -13,7 +14,7 @@
 from django.db.models import Q, QuerySet
 
 from apps.accounts.models import RoleAssignment, UserAccount
-from apps.academics.models import HomeroomAssignment, StudentClassMembership, Subject, TeachingAssignment
+from apps.academics.models import HomeroomAssignment, Subject, TeachingAssignment
 from apps.schools.models import School
 from apps.students.models import StudentSchoolMembership
 
@@ -46,13 +47,17 @@ def _has_active_role(user: UserAccount, school: School, role: str) -> bool:
 
 
 def visible_student_memberships_for(user: UserAccount, school: School) -> QuerySet:
-    """返回当前用户在该校可进入学生空间的在读学生关系。
+    """返回当前用户在该校可进入“学生业务空间”的在读学生关系。
+
+    这是 roster / context 级访问范围，不代表有权读取该学生的全部内容。
+    Phase 6 起，报告中的学生可见、家长专属、教职工内部内容还必须继续通过
+    具体对象与内容级 Policy 判断。
 
     当前允许来源：
     - 学生本人；
     - 有效家长 / 监护人关系；
-    - 有效任课关系覆盖的学生；
-    - 有效班主任关系覆盖的学生。
+    - 当前有效学年的任课关系覆盖的学生；
+    - 当前有效学年的班主任关系覆盖的学生。
 
     学术管理员和学校系统管理员不会因为角色本身自动获得学生教育内容读取权。
     """
@@ -63,12 +68,14 @@ def visible_student_memberships_for(user: UserAccount, school: School) -> QueryS
         teacher_role__user=user,
         teacher_role__school=school,
         class_group__academic_year__school=school,
+        class_group__academic_year__is_active=True,
     ).values("class_group_id")
 
     homeroom_group_ids = HomeroomAssignment.objects.active().filter(
         teacher_role__user=user,
         teacher_role__school=school,
         class_group__academic_year__school=school,
+        class_group__academic_year__is_active=True,
     ).values("class_group_id")
 
     return (
@@ -95,8 +102,15 @@ def visible_student_memberships_for(user: UserAccount, school: School) -> QueryS
     )
 
 
-def can_access_student(user: UserAccount, student_membership: StudentSchoolMembership) -> bool:
-    """是否可以进入该学生在该校的业务空间。"""
+def can_access_student_space(
+    user: UserAccount,
+    student_membership: StudentSchoolMembership,
+) -> bool:
+    """是否可以进入该学生在该校的业务空间。
+
+    注意：返回 True 只表示存在基本业务关系，不表示可以读取所有报告字段、
+    家长专属内容或教职工内部内容。
+    """
     if not student_membership:
         return False
     return visible_student_memberships_for(user, student_membership.school).filter(
@@ -109,7 +123,7 @@ def writable_student_memberships_for_subject(
     school: School,
     subject: Subject,
 ) -> QuerySet:
-    """返回教师可为指定学科创建评价的学生范围。"""
+    """返回教师可为指定学科创建评价的当前在读学生范围。"""
     if (
         not _active_authenticated_user(user)
         or not _operational_school(school)
@@ -123,6 +137,7 @@ def writable_student_memberships_for_subject(
         teacher_role__school=school,
         subject=subject,
         class_group__academic_year__school=school,
+        class_group__academic_year__is_active=True,
     ).values("class_group_id")
 
     return (
@@ -152,7 +167,7 @@ def can_write_subject_comment(
 
 
 def reviewable_student_memberships_for(user: UserAccount, school: School) -> QuerySet:
-    """返回当前班主任可以审核完整报告的学生范围。"""
+    """返回当前班主任可以审核完整报告的当前在读学生范围。"""
     if not _active_authenticated_user(user) or not _operational_school(school):
         return _empty_student_memberships()
 
@@ -160,6 +175,7 @@ def reviewable_student_memberships_for(user: UserAccount, school: School) -> Que
         teacher_role__user=user,
         teacher_role__school=school,
         class_group__academic_year__school=school,
+        class_group__academic_year__is_active=True,
     ).values("class_group_id")
 
     return (
