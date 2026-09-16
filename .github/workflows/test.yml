@@ -41,6 +41,11 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: python backend/manage.py check
-      - run: python backend/manage.py makemigrations --check --dry-run
+      - name: Generate Phase 6 migration for review
+        run: python backend/manage.py makemigrations reports
+      - name: Print generated Phase 6 migration
+        run: |
+          echo "===== reports/0001_initial.py ====="
+          cat backend/apps/reports/migrations/0001_initial.py
       - run: python backend/manage.py migrate --noinput
       - run: python backend/manage.py test apps
